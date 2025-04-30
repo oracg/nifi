@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -36,18 +37,26 @@ public class InMemoryFlowRegistry extends AbstractFlowRegistryClient implements 
 
     private final Map<FlowCoordinates, List<VersionedExternalFlow>> flowSnapshots = new ConcurrentHashMap<>();
 
+    /**
+     * Returns true regardless of the Flow Storage Location because this class is the only Flow Registry Client configured for Stateless operation
+     *
+     * @param context Configuration context.
+     * @param location The location of versioned flow to check.
+     *
+     * @return true regardless of location
+     */
     @Override
     public boolean isStorageLocationApplicable(final FlowRegistryClientConfigurationContext context, final String location) {
-        return false;
+        return true;
     }
 
     @Override
-    public Set<FlowRegistryBucket> getBuckets(FlowRegistryClientConfigurationContext context) {
+    public Set<FlowRegistryBucket> getBuckets(FlowRegistryClientConfigurationContext context, String branch) {
         throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
     }
 
     @Override
-    public FlowRegistryBucket getBucket(FlowRegistryClientConfigurationContext context, String bucketId) {
+    public FlowRegistryBucket getBucket(FlowRegistryClientConfigurationContext context, BucketLocation bucketLocation) {
         throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
     }
 
@@ -57,22 +66,25 @@ public class InMemoryFlowRegistry extends AbstractFlowRegistryClient implements 
     }
 
     @Override
-    public RegisteredFlow deregisterFlow(FlowRegistryClientConfigurationContext context, String bucketId, String flowId) {
+    public RegisteredFlow deregisterFlow(FlowRegistryClientConfigurationContext context, FlowLocation flowLocation) {
         throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
     }
 
     @Override
-    public Set<RegisteredFlow> getFlows(FlowRegistryClientConfigurationContext context, String bucketId) {
+    public Set<RegisteredFlow> getFlows(FlowRegistryClientConfigurationContext context, BucketLocation bucketLocation) {
         throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
     }
 
     @Override
-    public RegisteredFlowSnapshot registerFlowSnapshot(FlowRegistryClientConfigurationContext context, RegisteredFlowSnapshot flowSnapshot) {
+    public RegisteredFlowSnapshot registerFlowSnapshot(FlowRegistryClientConfigurationContext context, RegisteredFlowSnapshot flowSnapshot, RegisterAction registerAction) {
         throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
     }
 
     @Override
-    public RegisteredFlow getFlow(FlowRegistryClientConfigurationContext context, String bucketId, String flowId) {
+    public RegisteredFlow getFlow(FlowRegistryClientConfigurationContext context, FlowLocation flowLocation) {
+        final String bucketId = flowLocation.getBucketId();
+        final String flowId = flowLocation.getFlowId();
+
         final FlowCoordinates flowCoordinates = new FlowCoordinates(bucketId, flowId);
         final List<VersionedExternalFlow> snapshots = flowSnapshots.get(flowCoordinates);
 
@@ -87,16 +99,21 @@ public class InMemoryFlowRegistry extends AbstractFlowRegistryClient implements 
     }
 
     @Override
-    public RegisteredFlowSnapshot getFlowContents(final FlowRegistryClientConfigurationContext context, final String bucketId, final String flowId, final int version) throws FlowRegistryException {
+    public RegisteredFlowSnapshot getFlowContents(final FlowRegistryClientConfigurationContext context, final FlowVersionLocation flowVersionLocation)
+            throws FlowRegistryException {
         if (context.getNiFiUserIdentity().isPresent()) {
             throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
         }
+
+        final String bucketId = flowVersionLocation.getBucketId();
+        final String flowId = flowVersionLocation.getFlowId();
+        final String version = flowVersionLocation.getVersion();
 
         final FlowCoordinates flowCoordinates = new FlowCoordinates(bucketId, flowId);
         final List<VersionedExternalFlow> snapshots = flowSnapshots.get(flowCoordinates);
 
         final VersionedExternalFlow registeredFlowSnapshot = snapshots.stream()
-                .filter(snapshot -> snapshot.getMetadata().getVersion() == version)
+                .filter(snapshot -> Objects.equals(snapshot.getMetadata().getVersion(), version))
                 .findAny()
                 .orElseThrow(() -> new FlowRegistryException("Could not find flow: bucketId=" + bucketId + ", flowId=" + flowId + ", version=" + version));
 
@@ -130,11 +147,11 @@ public class InMemoryFlowRegistry extends AbstractFlowRegistryClient implements 
         final VersionedExternalFlowMetadata metadata = versionedExternalFlow.getMetadata();
         final String bucketId;
         final String flowId;
-        final int version;
+        final String version;
         if (metadata == null) {
             bucketId = DEFAULT_BUCKET_ID;
             flowId = "flow-" + flowIdGenerator.getAndIncrement();
-            version = 1;
+            version = "1";
         } else {
             bucketId = metadata.getBucketIdentifier();
             flowId = metadata.getFlowIdentifier();
@@ -156,12 +173,12 @@ public class InMemoryFlowRegistry extends AbstractFlowRegistryClient implements 
     }
 
     @Override
-    public Set<RegisteredFlowSnapshotMetadata> getFlowVersions(FlowRegistryClientConfigurationContext context, String bucketId, String flowId) {
+    public Set<RegisteredFlowSnapshotMetadata> getFlowVersions(FlowRegistryClientConfigurationContext context, FlowLocation flowLocation) {
         throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
     }
 
     @Override
-    public int getLatestVersion(FlowRegistryClientConfigurationContext context, String bucketId, String flowId) {
+    public Optional<String> getLatestVersion(FlowRegistryClientConfigurationContext context, FlowLocation flowLocation) {
         throw new UnsupportedOperationException(USER_SPECIFIC_ACTIONS_NOT_SUPPORTED);
     }
 

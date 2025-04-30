@@ -19,7 +19,6 @@ package org.apache.nifi.serialization.record;
 import org.apache.nifi.serialization.SimpleRecordSchema;
 import org.apache.nifi.serialization.record.type.ArrayDataType;
 import org.apache.nifi.serialization.record.type.DecimalDataType;
-import org.apache.nifi.serialization.record.util.DataTypeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -97,7 +96,7 @@ public class ResultSetRecordSetTest {
             new TestColumn(11, COLUMN_NAME_FLOAT, Types.FLOAT, RecordFieldType.FLOAT.getDataType()),
             new TestColumn(12, COLUMN_NAME_SMALLINT, Types.SMALLINT, RecordFieldType.SHORT.getDataType()),
             new TestColumn(13, COLUMN_NAME_TINYINT, Types.TINYINT, RecordFieldType.BYTE.getDataType()),
-            new TestColumn(14, COLUMN_NAME_BIG_DECIMAL_1, Types.DECIMAL,RecordFieldType.DECIMAL.getDecimalDataType(7, 3)),
+            new TestColumn(14, COLUMN_NAME_BIG_DECIMAL_1, Types.DECIMAL, RecordFieldType.DECIMAL.getDecimalDataType(7, 3)),
             new TestColumn(15, COLUMN_NAME_BIG_DECIMAL_2, Types.NUMERIC, RecordFieldType.DECIMAL.getDecimalDataType(4, 0)),
             new TestColumn(16, COLUMN_NAME_BIG_DECIMAL_3, Types.JAVA_OBJECT, RecordFieldType.DECIMAL.getDecimalDataType(501, 1)),
             new TestColumn(17, COLUMN_NAME_BIG_DECIMAL_4, Types.DECIMAL, RecordFieldType.DECIMAL.getDecimalDataType(10, 3)),
@@ -265,7 +264,6 @@ public class ResultSetRecordSetTest {
 
     @Test
     public void testCreateRecord() throws SQLException {
-        // given
         final RecordSchema recordSchema = givenRecordSchema(COLUMNS);
 
         LocalDate testDate = LocalDate.of(2021, 1, 26);
@@ -277,7 +275,6 @@ public class ResultSetRecordSetTest {
         final Boolean bitValue = Boolean.FALSE;
         final Boolean booleanValue = Boolean.TRUE;
         final Character charValue = 'c';
-        final Date dateValue = Date.valueOf(testDate);
         final Timestamp timestampValue = Timestamp.valueOf(testDateTime);
         final Integer integerValue = 1234567890;
         final Double doubleValue = 0.12;
@@ -297,7 +294,7 @@ public class ResultSetRecordSetTest {
         when(resultSet.getObject(COLUMN_NAME_BIT)).thenReturn(bitValue);
         when(resultSet.getObject(COLUMN_NAME_BOOLEAN)).thenReturn(booleanValue);
         when(resultSet.getObject(COLUMN_NAME_CHAR)).thenReturn(charValue);
-        when(resultSet.getObject(COLUMN_NAME_DATE)).thenReturn(dateValue);
+        when(resultSet.getObject(COLUMN_NAME_DATE)).thenReturn(testDate);
         when(resultSet.getTimestamp(COLUMN_NAME_TIMESTAMP)).thenReturn(timestampValue);
         when(resultSet.getObject(COLUMN_NAME_INTEGER)).thenReturn(integerValue);
         when(resultSet.getObject(COLUMN_NAME_DOUBLE)).thenReturn(doubleValue);
@@ -311,11 +308,9 @@ public class ResultSetRecordSetTest {
         when(resultSet.getObject(COLUMN_NAME_BIG_DECIMAL_4)).thenReturn(bigDecimal4Value);
         when(resultSet.getObject(COLUMN_NAME_BIG_DECIMAL_5)).thenReturn(bigDecimal5Value);
 
-        // when
         ResultSetRecordSet testSubject = new ResultSetRecordSet(resultSet, recordSchema);
         Record record = testSubject.createRecord(resultSet);
 
-        // then
         assertEquals(varcharValue, record.getAsString(COLUMN_NAME_VARCHAR));
         assertEquals(bigintValue, record.getAsLong(COLUMN_NAME_BIGINT));
         assertEquals(rowidValue, record.getAsLong(COLUMN_NAME_ROWID));
@@ -323,8 +318,9 @@ public class ResultSetRecordSetTest {
         assertEquals(booleanValue, record.getAsBoolean(COLUMN_NAME_BOOLEAN));
         assertEquals(charValue, record.getValue(COLUMN_NAME_CHAR));
 
-        assertEquals(dateValue, record.getAsDate(COLUMN_NAME_DATE, null));
-        assertEquals(timestampValue, DataTypeUtils.toTimestamp(record.getValue(COLUMN_NAME_TIMESTAMP), null, COLUMN_NAME_TIMESTAMP));
+        assertEquals(testDate, record.getAsLocalDate(COLUMN_NAME_DATE, null));
+        final Object timestampObject = record.getValue(COLUMN_NAME_TIMESTAMP);
+        assertEquals(timestampValue, timestampObject);
 
         assertEquals(integerValue, record.getAsInt(COLUMN_NAME_INTEGER));
         assertEquals(doubleValue, record.getAsDouble(COLUMN_NAME_DOUBLE));
@@ -366,7 +362,7 @@ public class ResultSetRecordSetTest {
         when(resultSetMetaData.getColumnType(1)).thenReturn(Types.DECIMAL);
 
         // when
-        ResultSetRecordSet testSubject = new ResultSetRecordSet(resultSet, recordSchema, 10,0, false);
+        ResultSetRecordSet testSubject = new ResultSetRecordSet(resultSet, recordSchema, 10, 0, false);
         final RecordSchema resultSchema = testSubject.getSchema();
 
         // then
@@ -433,7 +429,7 @@ public class ResultSetRecordSetTest {
         List<RecordField> fields = whenSchemaFieldsAreSetupForArrayType(testData, resultSet, resultSetMetaData);
         RecordSchema recordSchema = new SimpleRecordSchema(fields);
 
-        ResultSetRecordSet testSubject = new ResultSetRecordSet(resultSet, recordSchema, 10,0, useLogicalTypes);
+        ResultSetRecordSet testSubject = new ResultSetRecordSet(resultSet, recordSchema, 10, 0, useLogicalTypes);
         RecordSchema actualSchema = testSubject.getSchema();
 
         // THEN
@@ -448,7 +444,7 @@ public class ResultSetRecordSetTest {
                 new TestColumn(3, "time_with_timezone", Types.TIME_WITH_TIMEZONE, RecordFieldType.TIME.getDataType()),
                 new TestColumn(4, "timestamp", Types.TIMESTAMP, RecordFieldType.TIMESTAMP.getDataType()),
                 new TestColumn(5, "timestamp_with_timezone", Types.TIMESTAMP_WITH_TIMEZONE, RecordFieldType.TIMESTAMP.getDataType()),
-                new TestColumn(6, COLUMN_NAME_BIG_DECIMAL_1, Types.DECIMAL,RecordFieldType.DECIMAL.getDecimalDataType(7, 3)),
+                new TestColumn(6, COLUMN_NAME_BIG_DECIMAL_1, Types.DECIMAL, RecordFieldType.DECIMAL.getDecimalDataType(7, 3)),
                 new TestColumn(7, COLUMN_NAME_BIG_DECIMAL_2, Types.NUMERIC, RecordFieldType.DECIMAL.getDecimalDataType(4, 0)),
                 new TestColumn(8, COLUMN_NAME_BIG_DECIMAL_3, Types.JAVA_OBJECT, RecordFieldType.DECIMAL.getDecimalDataType(501, 1)),
                 new TestColumn(9, COLUMN_NAME_BIG_DECIMAL_4, Types.DECIMAL, RecordFieldType.DECIMAL.getDecimalDataType(10, 3)),
@@ -464,7 +460,7 @@ public class ResultSetRecordSetTest {
         // WHEN
         setUpMocks(columns, resultSetMetaData, resultSet);
 
-        ResultSetRecordSet testSubject = new ResultSetRecordSet(resultSet, recordSchema, 10,0, useLogicalTypes);
+        ResultSetRecordSet testSubject = new ResultSetRecordSet(resultSet, recordSchema, 10, 0, useLogicalTypes);
         RecordSchema actualSchema = testSubject.getSchema();
 
         // THEN

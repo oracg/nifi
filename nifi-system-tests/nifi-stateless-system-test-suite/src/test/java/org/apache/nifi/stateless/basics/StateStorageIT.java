@@ -18,7 +18,6 @@
 package org.apache.nifi.stateless.basics;
 
 import org.apache.nifi.components.state.Scope;
-import org.apache.nifi.flow.VersionedConnection;
 import org.apache.nifi.flow.VersionedPort;
 import org.apache.nifi.flow.VersionedProcessor;
 import org.apache.nifi.stateless.StatelessSystemIT;
@@ -46,7 +45,7 @@ public class StateStorageIT extends StatelessSystemIT {
 
         final VersionedProcessor generate = flowBuilder.createSimpleProcessor("GenerateFlowFile");
         final VersionedPort outPort = flowBuilder.createOutputPort("Out");
-        final VersionedConnection connection = flowBuilder.createConnection(generate, outPort, "success");
+        flowBuilder.createConnection(generate, outPort, "success");
 
         // Startup the dataflow
         final StatelessDataflow dataflow = loadDataflow(flowBuilder.getFlowSnapshot(), Collections.emptyList());
@@ -73,7 +72,7 @@ public class StateStorageIT extends StatelessSystemIT {
 
         final VersionedProcessor generate = flowBuilder.createSimpleProcessor("GenerateFlowFile");
         final VersionedPort outPort = flowBuilder.createOutputPort("Out");
-        final VersionedConnection connection = flowBuilder.createConnection(generate, outPort, "success");
+        flowBuilder.createConnection(generate, outPort, "success");
 
         // Startup the dataflow
         final StatelessDataflow dataflow = loadDataflow(flowBuilder.getFlowSnapshot(), Collections.emptyList());
@@ -89,7 +88,7 @@ public class StateStorageIT extends StatelessSystemIT {
         assertTrue(states.isEmpty());
 
         // Trigger a few times, acknowledging it
-        for (int i=0; i < 3; i++) {
+        for (int i = 0; i < 3; i++) {
             trigger = dataflow.trigger();
             result = trigger.getResult();
             assertTrue(result.isSuccessful());
@@ -99,7 +98,7 @@ public class StateStorageIT extends StatelessSystemIT {
             assertEquals(1, states.size());
 
             final String state = states.values().iterator().next();
-            assertTrue(state.contains("\"count\":\"" + (i+1) + "\""));
+            assertTrue(state.contains("\"count\":\"" + (i + 1) + "\""));
         }
 
         // Trigger again and cancel. State should still be available but should be the previously stored state.
@@ -123,7 +122,7 @@ public class StateStorageIT extends StatelessSystemIT {
 
         final VersionedProcessor generate = flowBuilder.createSimpleProcessor("GenerateFlowFile");
         final VersionedProcessor failure = flowBuilder.createSimpleProcessor("ThrowProcessException");
-        final VersionedConnection connection = flowBuilder.createConnection(generate, failure, "success");
+        flowBuilder.createConnection(generate, failure, "success");
 
         // Startup the dataflow
         final StatelessDataflow dataflow = loadDataflow(flowBuilder.getFlowSnapshot(), Collections.emptyList());

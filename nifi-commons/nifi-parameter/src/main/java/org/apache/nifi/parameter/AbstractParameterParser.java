@@ -32,20 +32,32 @@ public abstract class AbstractParameterParser implements ParameterParser {
         }
 
 
-        final int numEscapedStartTags = (sequentialStartTags - 1)/2;
+        final int numEscapedStartTags = (sequentialStartTags - 1) / 2;
         final int startOffset = startCharIndex + numEscapedStartTags * 2;
         final String referenceText = input.substring(startOffset, endCharIndex + 1);
 
         // If we have multiple escapes before the start tag, we need to add a StartCharacterEscape for each one.
         // For example, if we have ###{foo}, then we should end up with a StartCharacterEscape followed by an actual Parameter Reference.
-        for (int escapes=0; escapes < numEscapedStartTags; escapes++) {
+        for (int escapes = 0; escapes < numEscapedStartTags; escapes++) {
             tokens.add(new StartCharacterEscape(startCharIndex + escapes * 2));
         }
 
         final ParameterToken token;
         if (sequentialStartTags % 2 == 1) {
             final String parameterName = input.substring(startCharIndex + sequentialStartTags + 1, endCharIndex);
-            token = new StandardParameterReference(parameterName, startOffset, endCharIndex, referenceText);
+            if (parameterName.contains("'")) {
+                if (parameterName.startsWith("'") && parameterName.endsWith("'")) {
+                    final String parameterNameWithoutQuotes = parameterName.substring(1, parameterName.length() - 1);
+                    if (parameterNameWithoutQuotes.contains("'")) {
+                        return null;
+                    }
+                    token = new StandardParameterReference(parameterNameWithoutQuotes, startOffset, endCharIndex, referenceText);
+                } else {
+                    return null;
+                }
+            } else {
+                token = new StandardParameterReference(parameterName, startOffset, endCharIndex, referenceText);
+            }
         } else {
             token = new EscapedParameterReference(startOffset, endCharIndex, referenceText);
         }

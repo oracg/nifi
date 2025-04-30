@@ -145,15 +145,15 @@ public class GenerateFlowFile extends AbstractProcessor {
 
         final int numFlowFiles = context.getProperty(BATCH_SIZE).asInteger();
 
-        for (int i=0; i < numFlowFiles; i++) {
+        for (int i = 0; i < numFlowFiles; i++) {
             final FlowFile flowFile = createFlowFile(context, session);
             session.transfer(flowFile, REL_SUCCESS);
         }
 
-        getLogger().info("Generated {} FlowFiles", new Object[] {numFlowFiles});
+        getLogger().info("Generated {} FlowFiles", numFlowFiles);
         generatedCount.addAndGet(numFlowFiles);
 
-        session.commitAsync(() -> {},
+        session.commitAsync(() -> { },
             cause -> {
                 final String filename = context.getProperty(FILE_TO_WRITE_ON_COMMIT_FAILURE).getValue();
                 if (filename == null) {

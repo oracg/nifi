@@ -18,7 +18,7 @@
 package org.apache.nifi.tests.system.processor;
 
 import org.apache.nifi.tests.system.NiFiSystemIT;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
+import org.apache.nifi.toolkit.client.NiFiClientException;
 import org.apache.nifi.web.api.entity.ConnectionEntity;
 import org.apache.nifi.web.api.entity.ProcessorEntity;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,6 @@ class DefaultedDynamicClassPathModificationIT extends NiFiSystemIT {
 
     private ConnectionEntity defaultedModifyClasspathInputConnection;
     private ConnectionEntity successConnection;
-    private ConnectionEntity failureConnection;
 
     @Test
     void testLoadsClassFromDefaultedDynamicModification() throws NiFiClientException, IOException, InterruptedException {
@@ -100,6 +99,6 @@ class DefaultedDynamicClassPathModificationIT extends NiFiSystemIT {
 
         defaultedModifyClasspathInputConnection = getClientUtil().createConnection(generateFlowFileProcessor, defaultedModifyClasspathProcessor, "success");
         successConnection = getClientUtil().createConnection(defaultedModifyClasspathProcessor, terminateSuccess, "success");
-        failureConnection = getClientUtil().createConnection(defaultedModifyClasspathProcessor, terminateFailure, "failure");
+        getClientUtil().createConnection(defaultedModifyClasspathProcessor, terminateFailure, "failure");
     }
 }

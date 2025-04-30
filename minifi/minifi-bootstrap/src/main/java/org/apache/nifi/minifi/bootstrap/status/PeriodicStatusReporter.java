@@ -17,12 +17,11 @@
 
 package org.apache.nifi.minifi.bootstrap.status;
 
-import org.apache.nifi.minifi.bootstrap.QueryableStatusAggregator;
-
-import java.util.Properties;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import org.apache.nifi.minifi.bootstrap.QueryableStatusAggregator;
+import org.apache.nifi.minifi.properties.BootstrapProperties;
 
 public abstract class PeriodicStatusReporter {
 
@@ -38,14 +37,14 @@ public abstract class PeriodicStatusReporter {
      *
      * @param properties from the bootstrap configuration
      */
-    public abstract void initialize(Properties properties, QueryableStatusAggregator queryableStatusAggregator);
+    public abstract void initialize(BootstrapProperties properties, QueryableStatusAggregator queryableStatusAggregator);
 
     /**
      * Begins the associated reporting service provided by the given implementation.  In most implementations, no action will occur until this method is invoked. The implementing class must have set
      * 'reportRunner' prior to this method being called.
      */
     public void start() {
-        if (reportRunner == null){
+        if (reportRunner == null) {
             throw new IllegalStateException("Programmatic error, the reportRunner is still NULL when 'start' was called.");
         }
         scheduledExecutorService.scheduleAtFixedRate(reportRunner, period, period, TimeUnit.MILLISECONDS);
@@ -58,7 +57,7 @@ public abstract class PeriodicStatusReporter {
         try {
             scheduledExecutorService.shutdown();
             scheduledExecutorService.awaitTermination(termination_wait, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException ignore) {
+        } catch (InterruptedException ignored) {
             // Shutting down anyway
         }
     }

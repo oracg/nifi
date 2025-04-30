@@ -480,7 +480,7 @@ public class LdapUserGroupProvider implements UserGroupProvider {
                 }
 
                 do {
-                    userList.addAll(ldapTemplate.search(userSearchBase, userFilter.encode(), userControls, new AbstractContextMapper<User>() {
+                    userList.addAll(ldapTemplate.search(userSearchBase, userFilter.encode(), userControls, new AbstractContextMapper<>() {
                         @Override
                         protected User doMapFromContext(DirContextOperations ctx) {
                             // get the user identity
@@ -549,12 +549,12 @@ public class LdapUserGroupProvider implements UserGroupProvider {
                 groupFilter.and(new EqualsFilter("objectClass", groupObjectClass));
 
                 // if a filter has been provided by the user, we add it to the filter
-                if(StringUtils.isNotBlank(groupSearchFilter)) {
+                if (StringUtils.isNotBlank(groupSearchFilter)) {
                     groupFilter.and(new HardcodedFilter(groupSearchFilter));
                 }
 
                 do {
-                    groupList.addAll(ldapTemplate.search(groupSearchBase, groupFilter.encode(), groupControls, new AbstractContextMapper<Group>() {
+                    groupList.addAll(ldapTemplate.search(groupSearchBase, groupFilter.encode(), groupControls, new AbstractContextMapper<>() {
                         @Override
                         protected Group doMapFromContext(DirContextOperations ctx) {
                             // get the group identity
@@ -586,9 +586,9 @@ public class LdapUserGroupProvider implements UserGroupProvider {
                                                 if (user != null) {
                                                     groupToUserIdentifierMappings.computeIfAbsent(referencedGroupValue, g -> new HashSet<>()).add(user.getIdentifier());
                                                 } else {
-                                                    logger.debug(String.format("%s contains member %s but that user was not found while searching users. " +
+                                                    logger.debug("{} contains member {} but that user was not found while searching users. " +
                                                             "This may be due to misconfiguration or because that user is not a NiFi Registry user as defined by the User Search Base and Filter. " +
-                                                            "Ignoring group membership.", name, userValue));
+                                                            "Ignoring group membership.", name, userValue);
                                                 }
                                             } else {
                                                 // since performUserSearch is false, then the referenced group attribute must be blank... the user value must be the dn.
@@ -634,10 +634,10 @@ public class LdapUserGroupProvider implements UserGroupProvider {
                 } while (hasMorePages(groupProcessor));
 
                 // any remaining groupDn's were referenced by a user but not found while searching groups
-                groupToUserIdentifierMappings.forEach((referencedGroupValue, userIdentifiers) -> logger.debug(String.format(
-                                "[%s] are members of %s but that group was not found while searching groups. " +
+                groupToUserIdentifierMappings.forEach((referencedGroupValue, userIdentifiers) -> logger.debug(
+                                "[{}] are members of {} but that group was not found while searching groups. " +
                                 "This may be due to misconfiguration or because that group is not a NiFi Registry group as defined by the Group Search Base and Filter. " +
-                                "Ignoring group membership.", StringUtils.join(userIdentifiers, ", "), referencedGroupValue)));
+                                "Ignoring group membership.", StringUtils.join(userIdentifiers, ", "), referencedGroupValue));
             } else {
                 // since performGroupSearch is false, then the referenced user attribute must be blank... the group value must be the dn
 
@@ -665,10 +665,10 @@ public class LdapUserGroupProvider implements UserGroupProvider {
             if (logger.isDebugEnabled()) {
                 logger.debug("-------------------------------------");
                 logger.debug("Loaded the following users from LDAP:");
-                userList.forEach((user) -> logger.debug(" - " + user));
+                userList.forEach((user) -> logger.debug(" - {}", user));
                 logger.debug("--------------------------------------");
                 logger.debug("Loaded the following groups from LDAP:");
-                groupList.forEach((group) -> logger.debug(" - " + group));
+                groupList.forEach((group) -> logger.debug(" - {}", group));
                 logger.debug("--------------------------------------");
             }
 

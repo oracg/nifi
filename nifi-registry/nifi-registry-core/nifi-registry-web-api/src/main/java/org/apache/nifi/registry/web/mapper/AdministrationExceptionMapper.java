@@ -21,9 +21,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * Maps administration exceptions into client responses.
@@ -37,7 +37,7 @@ public class AdministrationExceptionMapper implements ExceptionMapper<Administra
     @Override
     public Response toResponse(AdministrationException exception) {
         // log the error
-        logger.error(String.format("%s. Returning %s response.", exception, Response.Status.INTERNAL_SERVER_ERROR), exception);
+        logger.error("{}. Returning {} response.", exception, Response.Status.INTERNAL_SERVER_ERROR, exception);
 
         // generate the response
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(exception.getMessage()).type("text/plain").build();

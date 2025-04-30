@@ -21,14 +21,14 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.kerberos.KerberosTicket;
 import java.io.File;
 import java.nio.file.Path;
-import java.security.AccessControlContext;
-import java.security.AccessController;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
@@ -42,6 +42,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class KerberosUserIT {
+    private static final Logger logger = LoggerFactory.getLogger(KerberosUserIT.class);
+
     private static KDCServer kdc;
 
     private static KerberosPrincipal principal1;
@@ -153,22 +155,19 @@ public class KerberosUserIT {
         // Since we set the lifetime to 15 seconds we should hit a relogin before 15 attempts
 
         boolean performedRelogin = false;
-        for (int i=0; i < 30; i++) {
+        for (int i = 0; i < 30; i++) {
             Thread.sleep(1000);
-            System.out.println("checkTGTAndRelogin #" + i);
+            logger.info("checkTGTAndRelogin #{}", i);
             performedRelogin = user1.checkTGTAndRelogin();
 
             if (performedRelogin) {
-                System.out.println("Performed relogin!");
+                logger.info("Performed relogin!");
                 break;
             }
         }
         assertTrue(performedRelogin);
 
-        Subject subject = user1.doAs((PrivilegedAction<Subject>) () -> {
-            AccessControlContext context = AccessController.getContext();
-            return Subject.getSubject(context);
-        });
+        Subject subject = user1.doAs((PrivilegedAction<Subject>) Subject::current);
 
         // verify only a single KerberosTicket exists in the Subject after relogin
         Set<KerberosTicket> kerberosTickets = subject.getPrivateCredentials(KerberosTicket.class);
@@ -179,7 +178,7 @@ public class KerberosUserIT {
         long currentTimeMillis = System.currentTimeMillis();
         long startMilli = kerberosTicket.getStartTime().toInstant().toEpochMilli();
         long endMilli = kerberosTicket.getEndTime().toInstant().toEpochMilli();
-        System.out.println("New ticket is valid for " + TimeUnit.MILLISECONDS.toSeconds(endMilli - startMilli) + " seconds");
+        logger.info("New ticket is valid for {}", TimeUnit.MILLISECONDS.toSeconds(endMilli - startMilli) + " seconds");
         assertTrue(startMilli < currentTimeMillis);
         assertTrue(endMilli > currentTimeMillis);
     }

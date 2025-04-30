@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -92,7 +91,7 @@ public class StatelessProvenanceRepository implements ProvenanceRepository {
 
     @Override
     public List<ProvenanceEventRecord> getEvents(final long firstRecordId, final int maxRecords, final NiFiUser user) throws IOException {
-        return ringBuffer.getSelectedElements(new RingBuffer.Filter<ProvenanceEventRecord>() {
+        return ringBuffer.getSelectedElements(new RingBuffer.Filter<>() {
             @Override
             public boolean select(final ProvenanceEventRecord value) {
                 return value.getEventId() >= firstRecordId;
@@ -107,7 +106,7 @@ public class StatelessProvenanceRepository implements ProvenanceRepository {
     }
 
     public ProvenanceEventRecord getEvent(final String identifier) throws IOException {
-        final List<ProvenanceEventRecord> records = ringBuffer.getSelectedElements(new RingBuffer.Filter<ProvenanceEventRecord>() {
+        final List<ProvenanceEventRecord> records = ringBuffer.getSelectedElements(new RingBuffer.Filter<>() {
             @Override
             public boolean select(final ProvenanceEventRecord event) {
                 return identifier.equals(event.getFlowFileUuid());
@@ -118,7 +117,7 @@ public class StatelessProvenanceRepository implements ProvenanceRepository {
 
     @Override
     public ProvenanceEventRecord getEvent(final long id) {
-        final List<ProvenanceEventRecord> records = ringBuffer.getSelectedElements(new RingBuffer.Filter<ProvenanceEventRecord>() {
+        final List<ProvenanceEventRecord> records = ringBuffer.getSelectedElements(new RingBuffer.Filter<>() {
             @Override
             public boolean select(final ProvenanceEventRecord event) {
                 return event.getEventId() == id;
@@ -154,8 +153,8 @@ public class StatelessProvenanceRepository implements ProvenanceRepository {
     }
 
     @Override
-    public Optional<ProvenanceEventRecord> getLatestCachedEvent(final String componentId) throws IOException {
-        return Optional.empty();
+    public List<ProvenanceEventRecord> getLatestCachedEvents(final String componentId, final int eventLimit) {
+        return List.of();
     }
 
     @Override

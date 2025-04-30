@@ -16,15 +16,16 @@
  */
 package org.apache.nifi.provenance;
 
+import org.apache.nifi.flowfile.FlowFile;
+import org.apache.nifi.flowfile.attributes.CoreAttributes;
+import org.apache.nifi.processor.Relationship;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.nifi.flowfile.FlowFile;
-import org.apache.nifi.flowfile.attributes.CoreAttributes;
-import org.apache.nifi.processor.Relationship;
 
 /**
  * Holder for provenance relevant information
@@ -302,9 +303,15 @@ public class StandardProvenanceEventRecord implements ProvenanceEventRecord {
             eventTypeCode = 4812 + eventType.hashCode() + 4 * uuid.hashCode();
         }
 
+        final List<String> sortedChildUuids = new ArrayList<>(getChildUuids());
+        final List<String> sortedParentUuids = new ArrayList<>(getParentUuids());
+
+        Collections.sort(sortedChildUuids);
+        Collections.sort(sortedParentUuids);
+
         return -37423 + 3 * componentId.hashCode() + (transitUri == null ? 0 : 41 * transitUri.hashCode())
                 + (relationship == null ? 0 : 47 * relationship.hashCode()) + 44 * eventTypeCode
-                + 47 * getChildUuids().hashCode() + 47 * getParentUuids().hashCode();
+                + 47 * sortedChildUuids.hashCode() + 47 * sortedParentUuids.hashCode();
     }
 
     @Override
@@ -821,6 +828,7 @@ public class StandardProvenanceEventRecord implements ProvenanceEventRecord {
                 case RECEIVE:
                 case FETCH:
                 case SEND:
+                case UPLOAD:
                     assertSet(transitUri, "Transit URI");
                     break;
                 case ROUTE:

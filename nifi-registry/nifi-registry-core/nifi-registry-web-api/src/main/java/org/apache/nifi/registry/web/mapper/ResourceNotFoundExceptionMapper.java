@@ -22,9 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 @Component
 @Provider
@@ -35,7 +35,7 @@ public class ResourceNotFoundExceptionMapper implements ExceptionMapper<Resource
     @Override
     public Response toResponse(ResourceNotFoundException exception) {
         // log the error
-        logger.info(String.format("%s. Returning %s response.", exception, Response.Status.NOT_FOUND));
+        logger.info("{}. Returning {} response.", exception, Response.Status.NOT_FOUND);
 
         if (logger.isDebugEnabled()) {
             logger.debug(StringUtils.EMPTY, exception);

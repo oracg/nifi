@@ -24,11 +24,11 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.GenericFilterBean;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 
 /**
@@ -74,7 +74,7 @@ public class IdentityFilter extends GenericFilterBean {
         logger.debug("Attempting to extract user credentials using {}", identityProvider.getClass().getSimpleName());
 
         try {
-            AuthenticationRequest authenticationRequest = identityProvider.extractCredentials((HttpServletRequest)servletRequest);
+            AuthenticationRequest authenticationRequest = identityProvider.extractCredentials((HttpServletRequest) servletRequest);
             if (authenticationRequest != null) {
                 Authentication authentication = new AuthenticationRequestToken(authenticationRequest, identityProvider.getClass(), servletRequest.getRemoteAddr());
                 logger.debug("Adding credentials claim to SecurityContext to be authenticated. Credentials extracted by {}: {}",

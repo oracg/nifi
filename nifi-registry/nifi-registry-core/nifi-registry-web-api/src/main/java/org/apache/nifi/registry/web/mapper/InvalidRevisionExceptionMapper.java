@@ -21,9 +21,9 @@ import org.apache.nifi.registry.revision.api.InvalidRevisionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * Maps invalid revision exceptions into client responses.
@@ -36,7 +36,7 @@ public class InvalidRevisionExceptionMapper implements ExceptionMapper<InvalidRe
     @Override
     public Response toResponse(final InvalidRevisionException exception) {
         // log the error
-        logger.info(String.format("%s. Returning %s response.", exception, Response.Status.BAD_REQUEST));
+        logger.info("{}. Returning {} response.", exception, Response.Status.BAD_REQUEST);
 
         if (logger.isDebugEnabled()) {
             logger.debug(StringUtils.EMPTY, exception);

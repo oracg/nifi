@@ -23,10 +23,11 @@ import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.SignatureException;
 import io.jsonwebtoken.SigningKeyResolverAdapter;
 import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.security.MacAlgorithm;
+import io.jsonwebtoken.security.SignatureException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.registry.security.authentication.AuthenticationResponse;
 import org.apache.nifi.registry.security.key.Key;
@@ -36,22 +37,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
-import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
-// TODO, look into replacing this JwtService service with Apache Licensed JJWT library
 @Service
 public class JwtService {
 
     private static final org.slf4j.Logger logger = LoggerFactory.getLogger(JwtService.class);
 
-    private static final SignatureAlgorithm SIGNATURE_ALGORITHM = SignatureAlgorithm.HS256;
+    private static final MacAlgorithm SIGNATURE_ALGORITHM = Jwts.SIG.HS256;
     private static final String KEY_ID_CLAIM = "kid";
     private static final String USERNAME_CLAIM = "preferred_username";
-    private static final Pattern tokenPattern = Pattern.compile("^Bearer (\\S*\\.\\S*\\.\\S*)$");
-    public static final String AUTHORIZATION = "Authorization";
+    private static final String GROUPS_CLAIM = "groups";
 
     private final KeyService keyService;
 
@@ -60,7 +63,7 @@ public class JwtService {
         this.keyService = keyService;
     }
 
-    public String getUserIdentityFromToken(final String base64EncodedToken) throws JwtException {
+    public Jws<Claims> parseAndValidateToken(final String base64EncodedToken) throws JwtException {
         // The library representations of the JWT should be kept internal to this service.
         try {
             final Jws<Claims> jws = parseTokenFromBase64EncodedString(base64EncodedToken);
@@ -70,21 +73,30 @@ public class JwtService {
             }
 
             // Additional validation that subject is present
-            if (StringUtils.isEmpty(jws.getBody().getSubject())) {
+            if (StringUtils.isEmpty(jws.getPayload().getSubject())) {
                 throw new JwtException("No subject available in token");
             }
 
             // TODO: Validate issuer against active IdentityProvider?
-            if (StringUtils.isEmpty(jws.getBody().getIssuer())) {
+            if (StringUtils.isEmpty(jws.getPayload().getIssuer())) {
                 throw new JwtException("No issuer available in token");
             }
-            return jws.getBody().getSubject();
+
+            return jws;
         } catch (JwtException e) {
-            logger.debug("The Base64 encoded JWT: " + base64EncodedToken);
-            final String errorMessage = "There was an error validating the JWT";
-            logger.error(errorMessage, e);
-            throw e;
+            throw new JwtException("There was an error validating the JWT", e);
         }
+    }
+
+    public String getUserIdentityFromToken(final Jws<Claims> jws) throws JwtException {
+        return jws.getPayload().getSubject();
+    }
+
+    public Set<String> getUserGroupsFromToken(final Jws<Claims> jws) throws JwtException {
+        @SuppressWarnings("unchecked")
+        final List<String> groupsString = jws.getPayload().get(GROUPS_CLAIM, ArrayList.class);
+
+        return new HashSet<>(groupsString != null ? groupsString : Collections.emptyList());
     }
 
     private Jws<Claims> parseTokenFromBase64EncodedString(final String base64EncodedToken) throws JwtException {
@@ -105,7 +117,7 @@ public class JwtService {
 
                     return key.getKey().getBytes(StandardCharsets.UTF_8);
                 }
-            }).parseClaimsJws(base64EncodedToken);
+            }).build().parseSignedClaims(base64EncodedToken);
         } catch (final MalformedJwtException | UnsupportedJwtException | SignatureException | ExpiredJwtException | IllegalArgumentException e) {
             // TODO: Exercise all exceptions to ensure none leak key material to logs
             final String errorMessage = "Unable to validate the access token.";
@@ -130,11 +142,15 @@ public class JwtService {
                 authenticationResponse.getUsername(),
                 authenticationResponse.getIssuer(),
                 authenticationResponse.getIssuer(),
-                authenticationResponse.getExpiration());
+                authenticationResponse.getExpiration(),
+                null);
     }
 
     public String generateSignedToken(String identity, String preferredUsername, String issuer, String audience, long expirationMillis) throws JwtException {
+        return this.generateSignedToken(identity, preferredUsername, issuer, audience, expirationMillis, null);
+    }
 
+    public String generateSignedToken(String identity, String preferredUsername, String issuer, String audience, long expirationMillis, Collection<String> groups) throws JwtException {
         if (identity == null || StringUtils.isEmpty(identity)) {
             String errorMessage = "Cannot generate a JWT for a token with an empty identity";
             errorMessage = issuer != null ? errorMessage + " issued by " + issuer + "." : ".";
@@ -153,18 +169,17 @@ public class JwtService {
             final Key key = keyService.getOrCreateKey(identity);
             final byte[] keyBytes = key.getKey().getBytes(StandardCharsets.UTF_8);
 
-            //logger.trace("Generating JWT for " + describe(authenticationResponse));
-
             // TODO: Implement "jti" claim with nonce to prevent replay attacks and allow blacklisting of revoked tokens
             // Build the token
-            return Jwts.builder().setSubject(identity)
-                    .setIssuer(issuer)
-                    .setAudience(audience)
+            return Jwts.builder().subject(identity)
+                    .issuer(issuer)
+                    .audience().add(audience).and()
                     .claim(USERNAME_CLAIM, preferredUsername)
                     .claim(KEY_ID_CLAIM, key.getId())
-                    .setIssuedAt(now.getTime())
-                    .setExpiration(expiration.getTime())
-                    .signWith(SIGNATURE_ALGORITHM, keyBytes).compact();
+                    .claim(GROUPS_CLAIM, groups != null ? groups : Collections.EMPTY_LIST)
+                    .issuedAt(now.getTime())
+                    .expiration(expiration.getTime())
+                    .signWith(Keys.hmacShaKeyFor(keyBytes), SIGNATURE_ALGORITHM).compact();
         } catch (NullPointerException e) {
             final String errorMessage = "Could not retrieve the signing key for JWT for " + identity;
             logger.error(errorMessage, e);
@@ -182,7 +197,7 @@ public class JwtService {
             keyService.deleteKey(userIdentity);
             logger.info("Deleted token from database.");
         } catch (Exception e) {
-            logger.error("Unable to delete token for user: [" + userIdentity + "].");
+            logger.error("Unable to delete token for user: [{}].", userIdentity);
             throw e;
         }
     }
@@ -192,12 +207,10 @@ public class JwtService {
         final long minExpiration = TimeUnit.MILLISECONDS.convert(1, TimeUnit.MINUTES);
 
         if (proposedTokenExpiration > maxExpiration) {
-            logger.warn(String.format("Max token expiration exceeded. Setting expiration to %s from %s for %s", maxExpiration,
-                    proposedTokenExpiration, identity));
+            logger.warn("Max token expiration exceeded. Setting expiration to {} from {} for {}", maxExpiration, proposedTokenExpiration, identity);
             proposedTokenExpiration = maxExpiration;
         } else if (proposedTokenExpiration < minExpiration) {
-            logger.warn(String.format("Min token expiration not met. Setting expiration to %s from %s for %s", minExpiration,
-                    proposedTokenExpiration, identity));
+            logger.warn("Min token expiration not met. Setting expiration to {} from {} for {}", minExpiration, proposedTokenExpiration, identity);
             proposedTokenExpiration = minExpiration;
         }
 
@@ -209,16 +222,12 @@ public class JwtService {
         expirationTime.setTimeInMillis(authenticationResponse.getExpiration());
         long remainingTime = expirationTime.getTimeInMillis() - Calendar.getInstance().getTimeInMillis();
 
-        SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss.SSS");
-        dateFormat.setTimeZone(expirationTime.getTimeZone());
-        String expirationTimeString = dateFormat.format(expirationTime.getTime());
-
         return new StringBuilder("LoginAuthenticationToken for ")
                 .append(authenticationResponse.getUsername())
                 .append(" issued by ")
                 .append(authenticationResponse.getIssuer())
                 .append(" expiring at ")
-                .append(expirationTimeString)
+                .append(expirationTime.getTime().toInstant().toString())
                 .append(" [")
                 .append(authenticationResponse.getExpiration())
                 .append(" ms, ")

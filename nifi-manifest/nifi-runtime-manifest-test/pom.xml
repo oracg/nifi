@@ -18,7 +18,7 @@
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-manifest</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.4.0-SNAPSHOT</version>
     </parent>
     <artifactId>nifi-runtime-manifest-test</artifactId>
     <packaging>jar</packaging>
@@ -26,17 +26,27 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.nifi</groupId>
-            <artifactId>nifi-runtime-manifest</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <artifactId>nifi-api</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
-            <artifactId>nifi-runtime-manifest-core</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <artifactId>c2-protocol-component-api</artifactId>
+            <version>2.4.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-runtime-manifest</artifactId>
+            <version>2.4.0-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
-
     <build>
         <plugins>
             <plugin>
@@ -45,14 +55,19 @@
                     <execution>
                         <id>extract-runtime-manifest</id>
                         <goals>
-                            <goal>unpack-dependencies</goal>
+                            <goal>unpack</goal>
                         </goals>
-                        <phase>generate-resources</phase>
+                        <phase>pre-integration-test</phase>
                         <configuration>
-                            <includeArtifactIds>nifi-runtime-manifest</includeArtifactIds>
                             <outputDirectory>${project.build.directory}/nifi-runtime-manifest</outputDirectory>
-                            <excludeTransitive>true</excludeTransitive>
                             <silent>false</silent>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.nifi</groupId>
+                                    <artifactId>nifi-runtime-manifest</artifactId>
+                                    <version>${project.version}</version>
+                                </artifactItem>
+                            </artifactItems>
                         </configuration>
                     </execution>
                 </executions>

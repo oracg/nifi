@@ -19,14 +19,21 @@ package org.apache.nifi.toolkit.cli.impl.command.nifi.params;
 import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.toolkit.cli.api.Result;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.ParamContextClient;
 import org.apache.nifi.toolkit.cli.impl.command.CommandOption;
 import org.apache.nifi.toolkit.cli.impl.command.nifi.AbstractNiFiCommand;
+import org.apache.nifi.toolkit.client.NiFiClientException;
+import org.apache.nifi.toolkit.client.ParamContextClient;
+import org.apache.nifi.web.api.dto.ParameterContextDTO;
+import org.apache.nifi.web.api.dto.ParameterDTO;
+import org.apache.nifi.web.api.dto.RevisionDTO;
 import org.apache.nifi.web.api.entity.ParameterContextEntity;
+import org.apache.nifi.web.api.entity.ParameterContextReferenceEntity;
 import org.apache.nifi.web.api.entity.ParameterContextUpdateRequestEntity;
+import org.apache.nifi.web.api.entity.ParameterEntity;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -41,7 +48,7 @@ public abstract class AbstractUpdateParamContextCommand<R extends Result> extend
     }
 
     protected ParameterContextUpdateRequestEntity performUpdate(final ParamContextClient client, final ParameterContextEntity parameterContextEntity,
-                                                                final ParameterContextUpdateRequestEntity updateRequestEntity, final int updateTimeoutSeconds)
+            final ParameterContextUpdateRequestEntity updateRequestEntity, final int updateTimeoutSeconds)
             throws NiFiClientException, IOException {
 
         final int maxPollIterations = Math.min(Math.max(Long.valueOf(updateTimeoutSeconds * 1000L / POLL_INTERVAL_MILLIS).intValue(), 1), MAX_TIMEOUT_SECONDS);
@@ -49,46 +56,45 @@ public abstract class AbstractUpdateParamContextCommand<R extends Result> extend
         final AtomicBoolean cancelled = new AtomicBoolean(false);
 
         // poll the update request for up to 30 seconds to see if it has completed
-        // if it doesn't complete then an exception will be thrown, but in either case the request will be deleted
+        // if it doesn't complete then an exception will be thrown, but in either case
+        // the request will be deleted
         final String contextId = parameterContextEntity.getId();
         final String updateRequestId = updateRequestEntity.getRequest().getRequestId();
-        try {
-            boolean completed = false;
-            for (int i = 0; i < maxPollIterations; i++) {
-                final ParameterContextUpdateRequestEntity retrievedUpdateRequest = client.getParamContextUpdateRequest(contextId, updateRequestId);
-                if (retrievedUpdateRequest != null && retrievedUpdateRequest.getRequest().isComplete()) {
-                    completed = true;
-                    break;
-                } else {
-                    try {
-                        if (getContext().isInteractive()) {
-                            println("Waiting for update request to complete...");
-                        }
-                        Thread.sleep(POLL_INTERVAL_MILLIS);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+
+        boolean completed = false;
+        for (int i = 0; i < maxPollIterations; i++) {
+            final ParameterContextUpdateRequestEntity retrievedUpdateRequest = client.getParamContextUpdateRequest(contextId, updateRequestId);
+            if (retrievedUpdateRequest != null && retrievedUpdateRequest.getRequest().isComplete()) {
+                completed = true;
+                break;
+            } else {
+                try {
+                    if (getContext().isInteractive()) {
+                        println("Waiting for update request to complete...");
                     }
+                    Thread.sleep(POLL_INTERVAL_MILLIS);
+                } catch (InterruptedException e) {
+                    println("Update request polling interrupted");
                 }
             }
-
-            if (!completed) {
-                cancelled.set(true);
-            }
-
-        } finally {
-            final ParameterContextUpdateRequestEntity deleteUpdateRequest = client.deleteParamContextUpdateRequest(contextId, updateRequestId);
-
-            final String failureReason = deleteUpdateRequest.getRequest().getFailureReason();
-            if (!StringUtils.isBlank(failureReason)) {
-                throw new NiFiClientException(failureReason);
-            }
-
-            if (cancelled.get()) {
-                throw new NiFiClientException("Unable to update parameter context in time, cancelling update request");
-            }
-
-            return deleteUpdateRequest;
         }
+
+        if (!completed) {
+            cancelled.set(true);
+        }
+
+        final ParameterContextUpdateRequestEntity deleteParamContextUpdateRequest = client.deleteParamContextUpdateRequest(contextId, updateRequestId);
+
+        final String failureReason = deleteParamContextUpdateRequest.getRequest().getFailureReason();
+        if (!StringUtils.isBlank(failureReason)) {
+            throw new NiFiClientException(failureReason);
+        }
+
+        if (cancelled.get()) {
+            throw new NiFiClientException("Unable to update parameter context in time, cancelling update request");
+        }
+
+        return deleteParamContextUpdateRequest;
     }
 
     protected int getUpdateTimeout(final Properties properties) {
@@ -98,5 +104,24 @@ public abstract class AbstractUpdateParamContextCommand<R extends Result> extend
         } catch (final MissingOptionException e) {
             throw new RuntimeException(e.getMessage(), e);
         }
+    }
+
+    protected ParameterContextEntity createContextEntityForUpdate(final String paramContextId, final ParameterDTO parameterDTO,
+            final List<ParameterContextReferenceEntity> inheritedParameterContexts,
+            final RevisionDTO paramContextRevision) {
+        final ParameterEntity parameterEntity = new ParameterEntity();
+        parameterEntity.setParameter(parameterDTO);
+
+        final ParameterContextDTO parameterContextDTO = new ParameterContextDTO();
+        parameterContextDTO.setId(paramContextId);
+        parameterContextDTO.setParameters(Collections.singleton(parameterEntity));
+        parameterContextDTO.setInheritedParameterContexts(inheritedParameterContexts);
+
+        final ParameterContextEntity updatedParameterContextEntity = new ParameterContextEntity();
+        updatedParameterContextEntity.setId(paramContextId);
+        updatedParameterContextEntity.setComponent(parameterContextDTO);
+        updatedParameterContextEntity.setRevision(paramContextRevision);
+        return updatedParameterContextEntity;
+
     }
 }

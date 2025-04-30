@@ -16,12 +16,13 @@
  */
 package org.apache.nifi.toolkit.cli.impl.command.nifi.pg.cs;
 
-import org.apache.nifi.toolkit.cli.impl.client.nifi.FlowClient;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
+import org.apache.nifi.toolkit.client.FlowClient;
+import org.apache.nifi.toolkit.client.NiFiClientException;
 import org.apache.nifi.web.api.entity.ControllerServiceEntity;
 import org.apache.nifi.web.api.entity.ControllerServicesEntity;
 
 import java.io.IOException;
+import java.util.List;
 
 /**
  * Utility methods for controller service commands.
@@ -31,34 +32,38 @@ public class ControllerServiceUtil {
     public static ControllerServiceStateCounts getControllerServiceStates(final FlowClient flowClient, final String pgId)
             throws NiFiClientException, IOException {
         final ControllerServicesEntity servicesEntity = flowClient.getControllerServices(pgId);
-        return getControllerServiceStates(servicesEntity);
+        if (servicesEntity == null || servicesEntity.getControllerServices() == null) {
+            return new ControllerServiceStateCounts();
+        }
+        final List<ControllerServiceEntity> pgCs = servicesEntity.getControllerServices().stream().filter(c -> c.getParentGroupId().equals(pgId)).toList();
+        return getControllerServiceStates(pgCs);
     }
 
-    public static ControllerServiceStateCounts getControllerServiceStates(final ControllerServicesEntity servicesEntity)
+    private static ControllerServiceStateCounts getControllerServiceStates(final List<ControllerServiceEntity> pgCs)
             throws NiFiClientException {
 
         final ControllerServiceStateCounts states = new ControllerServiceStateCounts();
-        if (servicesEntity == null || servicesEntity.getControllerServices() == null || servicesEntity.getControllerServices().isEmpty()) {
+        if (pgCs.isEmpty()) {
             return states;
         }
 
-        for (final ControllerServiceEntity serviceEntity : servicesEntity.getControllerServices()) {
+        for (final ControllerServiceEntity serviceEntity : pgCs) {
             final String state = serviceEntity.getComponent().getState();
-            switch(state) {
-                case ControllerServiceStates.STATE_ENABLED:
-                    states.incrementEnabled();
-                    break;
-                case ControllerServiceStates.STATE_ENABLING:
-                    states.incrementEnabling();
-                    break;
-                case ControllerServiceStates.STATE_DISABLED:
-                    states.incrementDisabled();
-                    break;
-                case ControllerServiceStates.STATE_DISABLING:
-                    states.incrementDisabling();
-                    break;
-                default:
-                    throw new NiFiClientException("Unexpected controller service state: " + state);
+            switch (state) {
+            case ControllerServiceStates.STATE_ENABLED:
+                states.incrementEnabled();
+                break;
+            case ControllerServiceStates.STATE_ENABLING:
+                states.incrementEnabling();
+                break;
+            case ControllerServiceStates.STATE_DISABLED:
+                states.incrementDisabled();
+                break;
+            case ControllerServiceStates.STATE_DISABLING:
+                states.incrementDisabling();
+                break;
+            default:
+                throw new NiFiClientException("Unexpected controller service state: " + state);
             }
         }
 

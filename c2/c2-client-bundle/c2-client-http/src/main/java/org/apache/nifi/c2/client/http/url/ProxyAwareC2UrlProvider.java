@@ -59,11 +59,12 @@ public class ProxyAwareC2UrlProvider implements C2UrlProvider {
     }
 
     @Override
-    public Optional<String> getCallbackUrl(String absoluteUrl, String relativeUrl) {
+    public String getCallbackUrl(String absoluteUrl, String relativeUrl) {
         return Optional.ofNullable(relativeUrl)
             .map(this::toAbsoluteUrl)
             .filter(Optional::isPresent)
-            .orElseGet(() -> Optional.ofNullable(absoluteUrl).filter(StringUtils::isNotBlank));
+            .orElseGet(() -> Optional.ofNullable(absoluteUrl).filter(StringUtils::isNotBlank))
+            .orElseThrow(() -> new IllegalArgumentException("Unable to return non empty c2 url."));
     }
 
     private Optional<String> toAbsoluteUrl(String path) {
@@ -74,7 +75,7 @@ public class ProxyAwareC2UrlProvider implements C2UrlProvider {
         try {
             return Optional.of(c2RestPathBase.resolve(stripStart(path, SLASH)).toString()); // leading slash needs to be removed for proper URL creation
         } catch (Exception e) {
-            LOG.error("Unable to convert restBase=" + c2RestPathBase + " and restPath=" + path + " to absolute url", e);
+            LOG.error("Unable to convert restBase={} and restPath={} to absolute url", c2RestPathBase, path, e);
             return Optional.empty();
         }
     }

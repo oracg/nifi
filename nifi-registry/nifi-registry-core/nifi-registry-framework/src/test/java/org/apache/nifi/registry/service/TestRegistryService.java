@@ -38,10 +38,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import javax.validation.ConstraintViolationException;
-import javax.validation.Validation;
-import javax.validation.Validator;
-import javax.validation.ValidatorFactory;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -52,7 +52,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.SortedSet;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -384,7 +383,7 @@ public class TestRegistryService {
         existingBucket.setCreated(new Date());
 
         when(metadataService.getBucketById(existingBucket.getId())).thenReturn(existingBucket);
-        final long timestamp  = System.currentTimeMillis()-1000; // 1 millisecond previous
+        final long timestamp  = System.currentTimeMillis() - 1000; // 1 millisecond previous
         final VersionedFlow versionedFlow = new VersionedFlow();
         versionedFlow.setIdentifier("f1");
         versionedFlow.setName("My Flow");
@@ -399,8 +398,8 @@ public class TestRegistryService {
         assertNotNull(createdFlow.getIdentifier());
         assertTrue(createdFlow.getCreatedTimestamp() > 0);
         assertTrue(createdFlow.getModifiedTimestamp() > 0);
-        assertEquals(timestamp,createdFlow.getCreatedTimestamp());
-        assertNotEquals(timestamp,createdFlow.getModifiedTimestamp());
+        assertEquals(timestamp, createdFlow.getCreatedTimestamp());
+        assertNotEquals(timestamp, createdFlow.getModifiedTimestamp());
         assertEquals(versionedFlow.getIdentifier(), createdFlow.getIdentifier());
         assertEquals(versionedFlow.getName(), createdFlow.getName());
         assertEquals(versionedFlow.getBucketIdentifier(), createdFlow.getBucketIdentifier());
@@ -826,7 +825,7 @@ public class TestRegistryService {
         assertNotNull(createdSnapshot.getSnapshotMetadata());
         assertNotNull(createdSnapshot.getFlow());
         assertNotNull(createdSnapshot.getBucket());
-        assertEquals(timestamp,createdSnapshot.getSnapshotMetadata().getTimestamp());
+        assertEquals(timestamp, createdSnapshot.getSnapshotMetadata().getTimestamp());
         verify(flowContentSerializer, times(1)).serializeFlowContent(any(FlowContent.class), any(OutputStream.class));
         verify(flowPersistenceProvider, times(1)).saveFlowContent(any(), any());
         verify(metadataService, times(1)).createFlowSnapshot(any(FlowSnapshotEntity.class));
@@ -1107,8 +1106,6 @@ public class TestRegistryService {
         existingFlow.setModified(new Date());
         existingFlow.setBucketId(existingBucket.getId());
 
-        final Set<FlowSnapshotEntity> snapshots = new HashSet<>();
-
         when(metadataService.getFlowById(existingFlow.getId())).thenReturn(existingFlow);
 
         final SortedSet<VersionedFlowSnapshotMetadata> retrievedSnapshots = registryService.getFlowSnapshots(existingBucket.getId(), existingFlow.getId());
@@ -1362,7 +1359,7 @@ public class TestRegistryService {
                 .filter(p -> p.getComponentId().equals("ID-pg1")).findFirst();
 
         assertTrue(removedComponent.isPresent());
-        assertTrue(removedComponent.get().getDifferences().iterator().next().getDifferenceType().equals("COMPONENT_REMOVED"));
+        assertEquals("COMPONENT_REMOVED", removedComponent.get().getDifferences().iterator().next().getDifferenceType());
     }
 
     @Test

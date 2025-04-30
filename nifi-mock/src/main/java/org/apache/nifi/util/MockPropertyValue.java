@@ -85,7 +85,7 @@ public class MockPropertyValue implements PropertyValue {
     }
 
     private void ensureExpressionsEvaluated() {
-        if (Boolean.TRUE.equals(expectExpressions) && !expressionsEvaluated && isExpressionLanguagePresent()) {
+        if (Boolean.TRUE.equals(expectExpressions) && !expressionsEvaluated) {
             throw new IllegalStateException("Attempting to retrieve value of " + propertyDescriptor
                     + " without first evaluating Expressions, even though the PropertyDescriptor indicates "
                     + "that the Expression Language is Supported. If you realize that this is the case and do not want "
@@ -93,14 +93,14 @@ public class MockPropertyValue implements PropertyValue {
         }
     }
 
-    private void validateExpressionScope(boolean attributesAvailable) {
+    private void validateExpressionScope(boolean flowFileProvided, boolean additionalAttributesAvailable) {
         if (expressionLanguageScope == null) {
             return;
         }
 
         // language scope is not null, we have attributes available but scope is not equal to FF attributes
         // it means that we're not evaluating against flow file attributes even though attributes are available
-        if (attributesAvailable && !ExpressionLanguageScope.FLOWFILE_ATTRIBUTES.equals(expressionLanguageScope)) {
+        if (flowFileProvided && !ExpressionLanguageScope.FLOWFILE_ATTRIBUTES.equals(expressionLanguageScope)) {
             throw new IllegalStateException("Attempting to evaluate expression language for " + propertyDescriptor.getName()
                     + " using flow file attributes but the scope evaluation is set to " + expressionLanguageScope + ". The"
                     + " proper scope should be set in the property descriptor using"
@@ -124,8 +124,8 @@ public class MockPropertyValue implements PropertyValue {
             return;
         }
 
-        // we're trying to evaluate against flow files attributes but we don't have any attributes available.
-        if (!attributesAvailable && ExpressionLanguageScope.FLOWFILE_ATTRIBUTES.equals(expressionLanguageScope)) {
+        // we're trying to evaluate against flow files attributes but we don't have a FlowFile available.
+        if (!flowFileProvided && !additionalAttributesAvailable && ExpressionLanguageScope.FLOWFILE_ATTRIBUTES.equals(expressionLanguageScope)) {
             throw new IllegalStateException("Attempting to evaluate expression language for " + propertyDescriptor.getName()
                     + " without using flow file attributes but the scope evaluation is set to " + expressionLanguageScope + ". The"
                     + " proper scope should be set in the property descriptor using"
@@ -263,16 +263,16 @@ public class MockPropertyValue implements PropertyValue {
         }
 
         if (!alreadyValidated) {
-            validateExpressionScope(flowFile != null || additionalAttributes != null);
+            validateExpressionScope(flowFile != null, additionalAttributes != null);
         }
 
-        if(additionalAttributes == null ) {
-            additionalAttributes = new HashMap<String,String>();
+        if (additionalAttributes == null ) {
+            additionalAttributes = new HashMap<>();
         }
         // we need a new map here because additionalAttributes can be an unmodifiable map when it's the FlowFile attributes
         final Map<String, String> attAndEnvVarRegistry = new HashMap<>(additionalAttributes);
 
-        if(environmentVariables != null) {
+        if (environmentVariables != null) {
             attAndEnvVarRegistry.putAll(environmentVariables);
         }
 
@@ -322,6 +322,11 @@ public class MockPropertyValue implements PropertyValue {
         return new StandardResourceReferenceFactory().createResourceReferences(rawValue, propertyDescriptor.getResourceDefinition());
     }
 
+    @Override
+    public <E extends Enum<E>> E asAllowableValue(Class<E> enumType) throws IllegalArgumentException {
+        ensureExpressionsEvaluated();
+        return stdPropValue.asAllowableValue(enumType);
+    }
 
     @Override
     public boolean isSet() {

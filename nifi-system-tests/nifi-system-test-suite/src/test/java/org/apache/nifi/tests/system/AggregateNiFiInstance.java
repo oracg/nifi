@@ -16,11 +16,13 @@
  */
 package org.apache.nifi.tests.system;
 
+import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 
 public class AggregateNiFiInstance implements NiFiInstance {
@@ -66,7 +68,7 @@ public class AggregateNiFiInstance implements NiFiInstance {
 
         // Shut down in the opposite order that they were brought up. We do this because only the first instance is going to be running ZooKeeper, and we don't
         // want to kill that before the other instances are shutdown.
-        for (int i=instances.size() - 1; i >= 0; i--) {
+        for (int i = instances.size() - 1; i >= 0; i--) {
             final NiFiInstance instance = instances.get(i);
 
             try {
@@ -113,6 +115,12 @@ public class AggregateNiFiInstance implements NiFiInstance {
     }
 
     @Override
+    public Optional<SSLContext> getSslContext() {
+        final NiFiInstance firstInstance = instances.getFirst();
+        return firstInstance.getSslContext();
+    }
+
+    @Override
     public Properties getProperties() {
         return null;
     }
@@ -144,7 +152,7 @@ public class AggregateNiFiInstance implements NiFiInstance {
 
     @Override
     public void quarantineTroubleshootingInfo(final File directory, final Throwable cause) throws IOException {
-        int i=0;
+        int i = 0;
         for (final NiFiInstance instance : instances) {
             final File nodeDirectory = new File(directory, "node-" + (++i));
             instance.quarantineTroubleshootingInfo(nodeDirectory, cause);

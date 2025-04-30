@@ -23,8 +23,8 @@ import org.apache.nifi.registry.flow.VersionedFlowSnapshotMetadata;
 import org.apache.nifi.flow.VersionedProcessGroup;
 import org.junit.jupiter.api.Test;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
 
 import java.util.UUID;
 
@@ -88,7 +88,7 @@ public class NoRevisionsIT extends UnsecuredNoRevisionsITBase {
 
         final VersionedFlow updatedFlow = client
                 .target(createURL("buckets/{bucketId}/flows/{flowId}"))
-                .resolveTemplate("bucketId",flow.getBucketIdentifier())
+                .resolveTemplate("bucketId", flow.getBucketIdentifier())
                 .resolveTemplate("flowId", createdFlow.getIdentifier())
                 .request()
                 .put(Entity.entity(createdFlow, MediaType.APPLICATION_JSON), VersionedFlow.class);

@@ -35,6 +35,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("resource")
@@ -89,10 +90,6 @@ public class TestHL7Query {
         possibleValueMap.put("C", valuesC);
         possibleValueMap.put("D", valuesD);
 
-        for (int i = 0; i < valuesA.size() * valuesB.size() * valuesC.size() * valuesD.size(); i++) {
-            System.out.println(i + " : " + HL7Query.assignAliases(possibleValueMap, i));
-        }
-
         verifyAssignments(HL7Query.assignAliases(possibleValueMap, 0), "a", "d", "e", "g");
         verifyAssignments(HL7Query.assignAliases(possibleValueMap, 1), "b", "d", "e", "g");
         verifyAssignments(HL7Query.assignAliases(possibleValueMap, 2), "c", "d", "e", "g");
@@ -140,7 +137,7 @@ public class TestHL7Query {
         assertEquals(1, result.getHitCount());
 
         final Object names = result.nextHit().getValue("PID.5");
-        assertTrue(names instanceof List);
+        assertInstanceOf(List.class, names);
         final List<Object> nameList = (List) names;
         assertEquals(1, nameList.size());
         final HL7Field nameField = (HL7Field) nameList.get(0);

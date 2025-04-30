@@ -88,9 +88,9 @@ public class DatabaseUserGroupProvider implements ConfigurableUserGroupProvider 
                         .identity(initialUserIdentity)
                         .build();
                 addUser(initialUser);
-                LOGGER.info("Created initial user with identity {}", new Object[]{initialUserIdentity});
+                LOGGER.info("Created initial user with identity {}", initialUserIdentity);
             } else {
-                LOGGER.debug("User already exists with identity {}", new Object[]{initialUserIdentity});
+                LOGGER.debug("User already exists with identity {}", initialUserIdentity);
             }
         }
     }
@@ -123,7 +123,7 @@ public class DatabaseUserGroupProvider implements ConfigurableUserGroupProvider 
     public User addUser(final User user) throws AuthorizationAccessException {
         Objects.requireNonNull(user);
         final String sql = "INSERT INTO UGP_USER(IDENTIFIER, IDENTITY) VALUES (?, ?)";
-        jdbcTemplate.update(sql, new Object[] {user.getIdentifier(), user.getIdentity()});
+        jdbcTemplate.update(sql, user.getIdentifier(), user.getIdentity());
         return user;
     }
 
@@ -299,7 +299,7 @@ public class DatabaseUserGroupProvider implements ConfigurableUserGroupProvider 
         final List<DatabaseGroup> databaseGroups = jdbcTemplate.query(sql, new DatabaseGroupRowMapper());
 
         // retrieve all the users in the groups, mapped by group id
-        final Map<String,Set<String>> groupToUsers = new HashMap<>();
+        final Map<String, Set<String>> groupToUsers = new HashMap<>();
         jdbcTemplate.query("SELECT * FROM UGP_USER_GROUP", (rs) -> {
             final String groupIdentifier = rs.getString("GROUP_IDENTIFIER");
             final String userIdentifier = rs.getString("USER_IDENTIFIER");
@@ -380,7 +380,7 @@ public class DatabaseUserGroupProvider implements ConfigurableUserGroupProvider 
     private <T> T queryForObject(final String sql, final RowMapper<T> rowMapper, final Object... args) {
         try {
             return jdbcTemplate.queryForObject(sql, rowMapper, args);
-        } catch(final EmptyResultDataAccessException e) {
+        } catch (final EmptyResultDataAccessException e) {
             return null;
         }
     }

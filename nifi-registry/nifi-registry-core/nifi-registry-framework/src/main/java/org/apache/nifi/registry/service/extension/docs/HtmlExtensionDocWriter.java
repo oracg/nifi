@@ -223,7 +223,7 @@ public class HtmlExtensionDocWriter implements ExtensionDocWriter {
             xmlStreamWriter.writeEndElement();
 
             xmlStreamWriter.writeStartElement("p");
-            xmlStreamWriter.writeCharacters("Please consider using one the following alternatives: ");
+            xmlStreamWriter.writeCharacters("Please consider using one of the following alternatives: ");
 
             final List<String> alternatives = deprecationNotice.getAlternatives();
             if (alternatives != null && alternatives.size() > 0) {
@@ -357,9 +357,9 @@ public class HtmlExtensionDocWriter implements ExtensionDocWriter {
                     final String registry = " (will be evaluated using Environment variables only)";
                     final InputRequirement inputRequirement = extension.getInputRequirement();
 
-                    switch(property.getExpressionLanguageScope()) {
+                    switch (property.getExpressionLanguageScope()) {
                         case FLOWFILE_ATTRIBUTES:
-                            if(inputRequirement != null && inputRequirement.equals(InputRequirement.INPUT_FORBIDDEN)) {
+                            if (inputRequirement != null && inputRequirement.equals(InputRequirement.INPUT_FORBIDDEN)) {
                                 text += registry;
                             } else {
                                 text += perFF;
@@ -434,12 +434,6 @@ public class HtmlExtensionDocWriter implements ExtensionDocWriter {
 
             writeValidValueDescription(xmlStreamWriter, group + "-" + artifact + "-" + version);
 
-//            xmlStreamWriter.writeEmptyElement("br");
-//            xmlStreamWriter.writeCharacters(group);
-//            xmlStreamWriter.writeEmptyElement("br");
-//            xmlStreamWriter.writeCharacters(artifact);
-//            xmlStreamWriter.writeEmptyElement("br");
-//            xmlStreamWriter.writeCharacters(version);
         }
     }
 
@@ -493,14 +487,14 @@ public class HtmlExtensionDocWriter implements ExtensionDocWriter {
                         ? ExpressionLanguageScope.NONE : dynamicProperty.getExpressionLanguageScope();
 
                 String text;
-                if(elScope.equals(ExpressionLanguageScope.NONE)) {
-                    if(dynamicProperty.isExpressionLanguageSupported()) {
+                if (elScope.equals(ExpressionLanguageScope.NONE)) {
+                    if (dynamicProperty.isExpressionLanguageSupported()) {
                         text = "Supports Expression Language: true (undefined scope)";
                     } else {
                         text = "Supports Expression Language: false";
                     }
                 } else {
-                    switch(elScope) {
+                    switch (elScope) {
                         case FLOWFILE_ATTRIBUTES:
                             text = "Supports Expression Language: true (will be evaluated using flow file attributes and env/syst variables registry)";
                             break;
@@ -529,7 +523,7 @@ public class HtmlExtensionDocWriter implements ExtensionDocWriter {
         final Stateful stateful = extension.getStateful();
         writeSimpleElement(xmlStreamWriter, "h3", "State management: ");
 
-        if(stateful != null) {
+        if (stateful != null) {
             final List<String> scopes = Optional.ofNullable(stateful.getScopes())
                     .map(List::stream)
                     .orElseGet(Stream::empty)
@@ -561,7 +555,7 @@ public class HtmlExtensionDocWriter implements ExtensionDocWriter {
         final Restricted restricted = extension.getRestricted();
         writeSimpleElement(xmlStreamWriter, "h3", "Restricted: ");
 
-        if(restricted != null) {
+        if (restricted != null) {
             final String generalRestrictionExplanation = restricted.getGeneralRestrictionExplanation();
             if (!StringUtils.isBlank(generalRestrictionExplanation)) {
                 xmlStreamWriter.writeCharacters(generalRestrictionExplanation);
@@ -601,7 +595,7 @@ public class HtmlExtensionDocWriter implements ExtensionDocWriter {
     private void writeInputRequirementInfo(final Extension extension, final XMLStreamWriter xmlStreamWriter)
             throws XMLStreamException {
         final InputRequirement inputRequirement = extension.getInputRequirement();
-        if(inputRequirement != null) {
+        if (inputRequirement != null) {
             writeSimpleElement(xmlStreamWriter, "h3", "Input requirement: ");
             switch (inputRequirement) {
                 case INPUT_FORBIDDEN:

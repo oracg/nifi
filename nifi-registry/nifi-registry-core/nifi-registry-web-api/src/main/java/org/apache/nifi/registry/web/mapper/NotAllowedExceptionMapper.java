@@ -21,11 +21,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.NotAllowedException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.NotAllowedException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * Maps exceptions into client responses.
@@ -38,7 +38,7 @@ public class NotAllowedExceptionMapper implements ExceptionMapper<NotAllowedExce
 
     @Override
     public Response toResponse(NotAllowedException exception) {
-        logger.info(String.format("%s. Returning %s response.", exception, Status.METHOD_NOT_ALLOWED));
+        logger.info("{}. Returning {} response.", exception, Status.METHOD_NOT_ALLOWED);
         logger.debug(StringUtils.EMPTY, exception);
         return Response.status(Status.METHOD_NOT_ALLOWED).entity(exception.getMessage()).type("text/plain").build();
     }

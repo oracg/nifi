@@ -31,14 +31,12 @@ import org.apache.nifi.connectable.Port;
 import org.apache.nifi.controller.ComponentNode;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.controller.ControllerService;
-import org.apache.nifi.controller.Counter;
 import org.apache.nifi.controller.ProcessScheduler;
 import org.apache.nifi.controller.ProcessorNode;
 import org.apache.nifi.controller.ReportingTaskNode;
 import org.apache.nifi.controller.queue.FlowFileQueue;
 import org.apache.nifi.controller.queue.QueueSize;
 import org.apache.nifi.controller.repository.ContentRepository;
-import org.apache.nifi.controller.repository.CounterRepository;
 import org.apache.nifi.controller.repository.FlowFileRecord;
 import org.apache.nifi.controller.repository.RepositoryContext;
 import org.apache.nifi.controller.repository.RepositoryRecord;
@@ -59,7 +57,6 @@ import org.apache.nifi.processor.ProcessSessionFactory;
 import org.apache.nifi.processor.Processor;
 import org.apache.nifi.processor.exception.FlowFileAccessException;
 import org.apache.nifi.processor.exception.TerminatedTaskException;
-import org.apache.nifi.provenance.ProvenanceEventRepository;
 import org.apache.nifi.remote.RemoteGroupPort;
 import org.apache.nifi.reporting.BulletinRepository;
 import org.apache.nifi.reporting.ReportingTask;
@@ -68,6 +65,7 @@ import org.apache.nifi.stateless.engine.ProcessContextFactory;
 import org.apache.nifi.stateless.engine.StandardExecutionProgress;
 import org.apache.nifi.stateless.queue.DrainableFlowFileQueue;
 import org.apache.nifi.stateless.repository.RepositoryContextFactory;
+import org.apache.nifi.stateless.repository.StatelessProvenanceRepository;
 import org.apache.nifi.stateless.session.AsynchronousCommitTracker;
 import org.apache.nifi.stream.io.StreamUtils;
 import org.apache.nifi.util.Connectables;
@@ -230,7 +228,7 @@ public class StandardStatelessFlow implements StatelessDataflow {
     }
 
     @Override
-    public void initialize() {
+    public void initialize(final StatelessDataflowInitializationContext initializationContext) {
         if (initialized) {
             logger.debug("{} initialize() was called, but dataflow has already been initialized. Returning without doing anything.", this);
             return;
@@ -248,9 +246,14 @@ public class StandardStatelessFlow implements StatelessDataflow {
         // before proceeding any further.
         try {
             final long serviceEnableStart = System.currentTimeMillis();
-            enableControllerServices(rootGroup);
 
-            waitForServicesEnabled(rootGroup);
+            if (initializationContext.isEnableControllerServices()) {
+                enableControllerServices(rootGroup);
+                waitForServicesEnabled(rootGroup);
+            } else {
+                logger.debug("Skipping Controller Service enablement because initializationContext.isEnableControllerServices() returned false");
+            }
+
             final long serviceEnableMillis = System.currentTimeMillis() - serviceEnableStart;
 
             // Perform validation again so that any processors that reference controller services that were just
@@ -474,9 +477,14 @@ public class StandardStatelessFlow implements StatelessDataflow {
             try {
                 future.get(this.componentEnableTimeoutMillis, TimeUnit.MILLISECONDS);
             } catch (final Exception e) {
-                final String validationErrors = performValidation().toString();
-                throw new IllegalStateException("Processor " + processor + " has not fully enabled. Current Validation Status is "
-                    + processor.getValidationStatus() + ". All validation errors: " + validationErrors);
+                final StatelessDataflowValidation validation = performValidation();
+                if (validation.isValid()) {
+                    throw new IllegalStateException("Processor " + processor + " is valid but has not fully started", e);
+                } else {
+                    final String validationErrors = performValidation().toString();
+                    throw new IllegalStateException("Processor " + processor + " has not fully started. Current Validation Status is "
+                                                    + processor.getValidationStatus() + ". All validation errors: " + validationErrors);
+                }
             }
 
             final long millis = System.currentTimeMillis() - start;
@@ -504,7 +512,7 @@ public class StandardStatelessFlow implements StatelessDataflow {
             repositoryContextFactory, dataflowDefinition.getFailurePortNames(), tracker, stateManagerProvider, triggerContext, this::purge);
 
         final Future<?> future = runDataflowExecutor.submit(
-            () -> executeDataflow(resultQueue, executionProgress, tracker, triggerContext.getFlowFileSupplier()));
+            () -> executeDataflow(resultQueue, executionProgress, tracker, triggerContext));
 
         final DataflowTrigger trigger = new DataflowTrigger() {
             @Override
@@ -537,7 +545,7 @@ public class StandardStatelessFlow implements StatelessDataflow {
 
 
     private void executeDataflow(final BlockingQueue<TriggerResult> resultQueue, final ExecutionProgress executionProgress, final AsynchronousCommitTracker tracker,
-                                 final FlowFileSupplier flowFileSupplier) {
+                                 final DataflowTriggerContext triggerContext) {
         final long startNanos = System.nanoTime();
         transactionThresholdMeter.reset();
 
@@ -547,7 +555,8 @@ public class StandardStatelessFlow implements StatelessDataflow {
             .processContextFactory(processContextFactory)
             .repositoryContextFactory(repositoryContextFactory)
             .rootConnectables(rootConnectables)
-            .flowFileSupplier(flowFileSupplier)
+            .flowFileSupplier(triggerContext.getFlowFileSupplier())
+            .provenanceEventRepository(triggerContext.getProvenanceEventRepository())
             .inputPorts(inputPorts)
             .transactionThresholdMeter(transactionThresholdMeter)
             .lifecycleStateManager(lifecycleStateManager)
@@ -654,7 +663,7 @@ public class StandardStatelessFlow implements StatelessDataflow {
             throw new IllegalArgumentException("No Input Port exists with name <" + portName + ">. Valid Port names are " + getInputPortNames());
         }
 
-        final RepositoryContext repositoryContext = repositoryContextFactory.createRepositoryContext(inputPort);
+        final RepositoryContext repositoryContext = repositoryContextFactory.createRepositoryContext(inputPort, new StatelessProvenanceRepository(10));
         final ProcessSessionFactory sessionFactory = new StandardProcessSessionFactory(repositoryContext, () -> false, new NopPerformanceTracker());
         final ProcessSession session = sessionFactory.createSession();
         try {
@@ -807,33 +816,6 @@ public class StandardStatelessFlow implements StatelessDataflow {
         }
 
         return latest;
-    }
-
-    @Override
-    public void resetCounters() {
-        final CounterRepository counterRepo = repositoryContextFactory.getCounterRepository();
-        counterRepo.getCounters().forEach(counter -> counterRepo.resetCounter(counter.getIdentifier()));
-    }
-
-    @Override
-    public Map<String, Long> getCounters(final boolean includeGlobalContext) {
-        final Map<String, Long> counters = new HashMap<>();
-        for (final Counter counter : repositoryContextFactory.getCounterRepository().getCounters()) {
-            // Counter context is either of the format `componentName (componentId)` or `All componentType's` (global context). We only want the
-            // those of the first type - for individual components - unless includeGlobalContext == true
-            final boolean isGlobalContext = !counter.getContext().endsWith(")");
-            if (includeGlobalContext || !isGlobalContext) {
-                final String counterName = isGlobalContext ? counter.getName() : (counter.getName() + " - " + counter.getContext());
-                counters.put(counterName, counter.getValue());
-            }
-        }
-
-        return counters;
-    }
-
-    @Override
-    public ProvenanceEventRepository getProvenanceRepository() {
-        return repositoryContextFactory.getProvenanceRepository();
     }
 
     @Override

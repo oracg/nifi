@@ -86,7 +86,7 @@ public class DatabaseAccessPolicyProvider extends AbstractConfigurableAccessPoli
         final String nifiGroupName = AccessPolicyProviderUtils.getNiFiGroupName(configurationContext, identityMapper);
 
         if (!StringUtils.isBlank(initialAdminIdentity)) {
-            LOGGER.info("Populating authorizations for Initial Admin: '" + initialAdminIdentity + "'");
+            LOGGER.info("Populating authorizations for Initial Admin: '{}'", initialAdminIdentity);
             populateInitialAdmin(initialAdminIdentity);
         }
 
@@ -96,7 +96,7 @@ public class DatabaseAccessPolicyProvider extends AbstractConfigurableAccessPoli
         }
 
         if (!StringUtils.isBlank(nifiGroupName)) {
-            LOGGER.info("Populating authorizations for NiFi Group: '" + nifiGroupName + "'");
+            LOGGER.info("Populating authorizations for NiFi Group: '{}'", nifiGroupName);
             populateNiFiGroup(nifiGroupName);
         }
     }
@@ -203,7 +203,7 @@ public class DatabaseAccessPolicyProvider extends AbstractConfigurableAccessPoli
         final List<DatabaseAccessPolicy> databasePolicies = jdbcTemplate.query(sql, new DatabaseAccessPolicyRowMapper());
 
         // retrieve all users in policies, mapped by policy id
-        final Map<String,Set<String>> policyToUsers = new HashMap<>();
+        final Map<String, Set<String>> policyToUsers = new HashMap<>();
         jdbcTemplate.query("SELECT * FROM APP_POLICY_USER", (rs) -> {
             final String policyIdentifier = rs.getString("POLICY_IDENTIFIER");
             final String userIdentifier = rs.getString("USER_IDENTIFIER");
@@ -213,7 +213,7 @@ public class DatabaseAccessPolicyProvider extends AbstractConfigurableAccessPoli
         });
 
         // retrieve all groups in policies, mapped by policy id
-        final Map<String,Set<String>> policyToGroups = new HashMap<>();
+        final Map<String, Set<String>> policyToGroups = new HashMap<>();
         jdbcTemplate.query("SELECT * FROM APP_POLICY_GROUP", (rs) -> {
             final String policyIdentifier = rs.getString("POLICY_IDENTIFIER");
             final String groupIdentifier = rs.getString("GROUP_IDENTIFIER");
@@ -357,11 +357,9 @@ public class DatabaseAccessPolicyProvider extends AbstractConfigurableAccessPoli
         } else {
             // a policy already exists for the given resource and action, so just associate the user with that policy
             if (existingPolicy.getUsers().contains(initialUser.getIdentifier())) {
-                LOGGER.debug("'{}' is already part of the policy for {} {}",
-                        new Object[]{initialUser.getIdentity(), action.toString(), resourceIdentifier});
+                LOGGER.debug("'{}' is already part of the policy for {} {}", initialUser.getIdentity(), action, resourceIdentifier);
             } else {
-                LOGGER.debug("Adding '{}' to the policy for {} {}",
-                        new Object[]{initialUser.getIdentity(), action.toString(), resourceIdentifier});
+                LOGGER.debug("Adding '{}' to the policy for {} {}", initialUser.getIdentity(), action, resourceIdentifier);
                 insertPolicyUser(existingPolicy.getIdentifier(), userIdentifier);
             }
         }
@@ -394,7 +392,7 @@ public class DatabaseAccessPolicyProvider extends AbstractConfigurableAccessPoli
     protected <T> T queryForObject(final String sql, final RowMapper<T> rowMapper, final Object... args) {
         try {
             return jdbcTemplate.queryForObject(sql, rowMapper, args);
-        } catch(final EmptyResultDataAccessException e) {
+        } catch (final EmptyResultDataAccessException e) {
             return null;
         }
     }

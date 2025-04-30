@@ -49,11 +49,11 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import javax.xml.XMLConstants;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -141,7 +141,7 @@ public class FileAccessPolicyProvider extends AbstractConfigurableAccessPolicyPr
             // get the authorizations file and ensure it exists
             authorizationsFile = new File(authorizationsPath.getValue());
             if (!authorizationsFile.exists()) {
-                logger.info("Creating new authorizations file at {}", new Object[] {authorizationsFile.getAbsolutePath()});
+                logger.info("Creating new authorizations file at {}", authorizationsFile.getAbsolutePath());
                 saveAuthorizations(new Authorizations());
             }
 
@@ -157,7 +157,7 @@ public class FileAccessPolicyProvider extends AbstractConfigurableAccessPolicyPr
             // load the authorizations
             load();
 
-            logger.info(String.format("Authorizations file loaded at %s", new Date().toString()));
+            logger.info("Authorizations file loaded at {}", new Date());
         } catch (JAXBException | SAXException e) {
             throw new SecurityProviderCreationException(e);
         }
@@ -321,7 +321,7 @@ public class FileAccessPolicyProvider extends AbstractConfigurableAccessPolicyPr
             if (writer != null) {
                 try {
                     writer.close();
-                } catch (XMLStreamException e) {
+                } catch (XMLStreamException ignored) {
                     // nothing to do here
                 }
             }
@@ -369,13 +369,13 @@ public class FileAccessPolicyProvider extends AbstractConfigurableAccessPolicyPr
         }
 
         NodeList policyUsers = element.getElementsByTagName(POLICY_USER_ELEMENT);
-        for (int i=0; i < policyUsers.getLength(); i++) {
+        for (int i = 0; i < policyUsers.getLength(); i++) {
             Element policyUserNode = (Element) policyUsers.item(i);
             builder.addUser(policyUserNode.getAttribute(IDENTIFIER_ATTR));
         }
 
         NodeList policyGroups = element.getElementsByTagName(POLICY_GROUP_ELEMENT);
-        for (int i=0; i < policyGroups.getLength(); i++) {
+        for (int i = 0; i < policyGroups.getLength(); i++) {
             Element policyGroupNode = (Element) policyGroups.item(i);
             builder.addGroup(policyGroupNode.getAttribute(IDENTIFIER_ATTR));
         }
@@ -432,7 +432,7 @@ public class FileAccessPolicyProvider extends AbstractConfigurableAccessPolicyPr
         // if we are starting fresh then we might need to populate an initial admin
         if (emptyAuthorizations) {
             if (hasInitialAdminIdentity) {
-               logger.info("Populating authorizations for Initial Admin: '" + initialAdminIdentity + "'");
+               logger.info("Populating authorizations for Initial Admin: '{}'", initialAdminIdentity);
                populateInitialAdmin(authorizations);
             }
 

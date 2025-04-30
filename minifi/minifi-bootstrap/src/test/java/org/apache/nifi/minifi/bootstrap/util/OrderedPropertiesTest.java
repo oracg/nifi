@@ -46,12 +46,10 @@ public class OrderedPropertiesTest {
         try (BufferedReader actualReader = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(byteArrayOutputStream.toByteArray())));
              BufferedReader expectedReader = new BufferedReader(new InputStreamReader(OrderedPropertiesTest.class.getClassLoader().getResourceAsStream("orderedPropertiesExpected.properties")))) {
             String expectedLine;
-            while((expectedLine = expectedReader.readLine()) != null) {
+            while ((expectedLine = expectedReader.readLine()) != null) {
                 String actualLine = actualReader.readLine();
                 if (!"#Tue Feb 21 11:03:08 EST 2017".equals(expectedLine)) {
                     assertEquals(expectedLine, actualLine);
-                } else {
-                    System.out.println("Skipping timestamp comment line");
                 }
             }
             assertNull(actualReader.readLine());

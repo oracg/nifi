@@ -126,7 +126,6 @@ import org.apache.nifi.web.api.entity.TransactionResultEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.nifi.remote.protocol.http.HttpHeaders.HANDSHAKE_PROPERTY_BATCH_COUNT;
 import static org.apache.nifi.remote.protocol.http.HttpHeaders.HANDSHAKE_PROPERTY_BATCH_DURATION;
 import static org.apache.nifi.remote.protocol.http.HttpHeaders.HANDSHAKE_PROPERTY_BATCH_SIZE;
@@ -258,7 +257,7 @@ public class SiteToSiteRestApiClient implements Closeable {
     private void setupCredentialsProvider() {
         credentialsProvider = new BasicCredentialsProvider();
         if (proxy != null) {
-            if (!isEmpty(proxy.getUsername()) && !isEmpty(proxy.getPassword())) {
+            if (StringUtils.isNotEmpty(proxy.getUsername()) && StringUtils.isNotEmpty(proxy.getPassword())) {
                 credentialsProvider.setCredentials(
                     new AuthScope(proxy.getHttpHost()),
                     new UsernamePasswordCredentials(proxy.getUsername(), proxy.getPassword()));
@@ -357,7 +356,7 @@ public class SiteToSiteRestApiClient implements Closeable {
                 return getController();
             } catch (IOException e) {
                 lastException = e;
-                logger.warn("Failed to get controller from " + clusterUrl + " due to " + e);
+                logger.warn("Failed to get controller from {}", clusterUrl, e);
                 if (logger.isDebugEnabled()) {
                     logger.debug("", e);
                 }
@@ -477,7 +476,7 @@ public class SiteToSiteRestApiClient implements Closeable {
                 EntityUtils.consume(response.getEntity());
 
                 transactionUrl = readTransactionUrl(response);
-                if (isEmpty(transactionUrl)) {
+                if (StringUtils.isEmpty(transactionUrl)) {
                     throw new ProtocolException("Server returned RESPONSE_CODE_CREATED without Location header");
                 }
                 final Header transportProtocolVersionHeader = response.getFirstHeader(HttpHeaders.PROTOCOL_VERSION);
@@ -665,7 +664,7 @@ public class SiteToSiteRestApiClient implements Closeable {
         final AuthState proxyAuthState;
         if (shouldCheckProxyAuth()
                 && logger.isDebugEnabled()
-                && (proxyAuthState = (AuthState)context.getAttribute("http.auth.proxy-scope")) != null){
+                && (proxyAuthState = (AuthState) context.getAttribute("http.auth.proxy-scope")) != null) {
             logger.debug("authProxyScope={}", proxyAuthState);
         }
     }
@@ -680,14 +679,14 @@ public class SiteToSiteRestApiClient implements Closeable {
     }
 
     private boolean shouldCheckProxyAuth() {
-        return proxy != null && !isEmpty(proxy.getUsername());
+        return proxy != null && StringUtils.isNotEmpty(proxy.getUsername());
     }
 
     public boolean openConnectionForReceive(final String transactionUrl, final Peer peer) throws IOException {
 
         final HttpGet get = createGet(transactionUrl + "/flow-files");
         // Set uri so that it'll be used as transit uri.
-        ((HttpCommunicationsSession)peer.getCommunicationsSession()).setDataTransferUrl(get.getURI().toString());
+        ((HttpCommunicationsSession) peer.getCommunicationsSession()).setDataTransferUrl(get.getURI().toString());
 
         get.setHeader(HttpHeaders.PROTOCOL_VERSION, String.valueOf(transportProtocolVersionNegotiator.getVersion()));
 
@@ -751,7 +750,7 @@ public class SiteToSiteRestApiClient implements Closeable {
         final String flowFilesPath = transactionUrl + "/flow-files";
         final HttpPost post = createPost(flowFilesPath);
         // Set uri so that it'll be used as transit uri.
-        ((HttpCommunicationsSession)peer.getCommunicationsSession()).setDataTransferUrl(post.getURI().toString());
+        ((HttpCommunicationsSession) peer.getCommunicationsSession()).setDataTransferUrl(post.getURI().toString());
 
         post.setHeader("Content-Type", "application/octet-stream");
         post.setHeader("Accept", "text/plain");
@@ -1199,7 +1198,7 @@ public class SiteToSiteRestApiClient implements Closeable {
         }
 
         public String getDescription() {
-            return !isEmpty(explanation) ? explanation : responseMessage;
+            return StringUtils.isNotEmpty(explanation) ? explanation : responseMessage;
         }
     }
 
@@ -1454,16 +1453,11 @@ public class SiteToSiteRestApiClient implements Closeable {
             logger.debug("commitReceivingFlowFiles responseCode={}", responseCode);
 
             try (InputStream content = response.getEntity().getContent()) {
-                switch (responseCode) {
-                    case RESPONSE_CODE_OK:
-                        return readResponse(content);
-
-                    case RESPONSE_CODE_BAD_REQUEST:
-                        return readResponse(content);
-
-                    default:
-                        throw handleErrResponse(responseCode, content);
-                }
+                return switch (responseCode) {
+                    case RESPONSE_CODE_OK -> readResponse(content);
+                    case RESPONSE_CODE_BAD_REQUEST -> readResponse(content);
+                    default -> throw handleErrResponse(responseCode, content);
+                };
             }
         }
 
@@ -1484,16 +1478,11 @@ public class SiteToSiteRestApiClient implements Closeable {
             logger.debug("commitTransferFlowFiles responseCode={}", responseCode);
 
             try (InputStream content = response.getEntity().getContent()) {
-                switch (responseCode) {
-                    case RESPONSE_CODE_OK:
-                        return readResponse(content);
-
-                    case RESPONSE_CODE_BAD_REQUEST:
-                        return readResponse(content);
-
-                    default:
-                        throw handleErrResponse(responseCode, content);
-                }
+                return switch (responseCode) {
+                    case RESPONSE_CODE_OK -> readResponse(content);
+                    case RESPONSE_CODE_BAD_REQUEST -> readResponse(content);
+                    default -> throw handleErrResponse(responseCode, content);
+                };
             }
         }
 

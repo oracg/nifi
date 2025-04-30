@@ -57,9 +57,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.validation.ConstraintViolation;
-import javax.validation.ConstraintViolationException;
-import javax.validation.Validator;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -313,7 +313,7 @@ public class RegistryService {
             final BundleEntity bundleEntity = (BundleEntity) itemEntity;
             bucketItems.add(ExtensionMappings.map(null, bundleEntity));
         } else {
-            LOGGER.error("Unknown type of BucketItemEntity: " + itemEntity.getClass().getCanonicalName());
+            LOGGER.error("Unknown type of BucketItemEntity: {}", itemEntity.getClass().getCanonicalName());
         }
     }
 

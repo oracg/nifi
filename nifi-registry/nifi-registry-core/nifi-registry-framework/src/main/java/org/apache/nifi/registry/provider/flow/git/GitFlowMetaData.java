@@ -24,6 +24,8 @@ import org.eclipse.jgit.api.PushCommand;
 import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.api.errors.NoHeadException;
+import org.eclipse.jgit.lib.Config;
+import org.eclipse.jgit.lib.GpgConfig;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectStream;
 import org.eclipse.jgit.lib.Ref;
@@ -138,7 +140,7 @@ class GitFlowMetaData {
     }
 
     private static boolean hasAtLeastOneReference(Repository repo) throws IOException {
-        logger.info("Checking references for repository {}", repo.toString());
+        logger.info("Checking references for repository {}", repo);
         for (Ref ref : repo.getRefDatabase().getRefs()) {
             if (ref.getObjectId() == null) {
                 continue;
@@ -161,7 +163,7 @@ class GitFlowMetaData {
             return false;
         }
 
-        if (RepositoryCache.FileKey.isGitRepository(new File(localRepo.getPath()+"/.git"), FS.DETECTED)) {
+        if (RepositoryCache.FileKey.isGitRepository(new File(localRepo.getPath() + "/.git"), FS.DETECTED)) {
             final Git git = Git.open(new File(localRepo.getPath() + "/.git"));
             final Repository repository = git.getRepository();
             logger.info("Checking for git references in {}", localRepo.getPath());
@@ -250,7 +252,7 @@ class GitFlowMetaData {
 
                         if (bucketObjectIds.isEmpty()) {
                             // No bucket.yml means at this point, all flows are deleted. No need to scan older commits because those are already deleted.
-                            logger.debug("Tree at commit {} does not contain any " + BUCKET_FILENAME + ". Stop loading commits here.", shortCommitId);
+                            logger.debug("Tree at commit {} does not contain any {}. Stop loading commits here.", shortCommitId, BUCKET_FILENAME);
                             return;
                         }
 
@@ -398,19 +400,19 @@ class GitFlowMetaData {
                 pointer.setObjectId(objectId.getName());
 
                 if (flowMeta.containsKey(FLOW_NAME)) {
-                    pointer.setFlowName((String)flowMeta.get(FLOW_NAME));
+                    pointer.setFlowName((String) flowMeta.get(FLOW_NAME));
                 }
                 if (flowMeta.containsKey(FLOW_DESC)) {
-                    pointer.setFlowDescription((String)flowMeta.get(FLOW_DESC));
+                    pointer.setFlowDescription((String) flowMeta.get(FLOW_DESC));
                 }
                 if (flowMeta.containsKey(AUTHOR)) {
-                    pointer.setAuthor((String)flowMeta.get(AUTHOR));
+                    pointer.setAuthor((String) flowMeta.get(AUTHOR));
                 }
                 if (flowMeta.containsKey(COMMENTS)) {
-                    pointer.setComment((String)flowMeta.get(COMMENTS));
+                    pointer.setComment((String) flowMeta.get(COMMENTS));
                 }
                 if (flowMeta.containsKey(CREATED)) {
-                    pointer.setCreated((long)flowMeta.get(CREATED));
+                    pointer.setCreated((long) flowMeta.get(CREATED));
                 }
 
                 flow.putVersion(version, pointer);
@@ -418,7 +420,7 @@ class GitFlowMetaData {
         }
     }
 
-    private boolean validateRequiredValue(final Map<String, Object> map, String nameOfMap, Object ... keys) {
+    private boolean validateRequiredValue(final Map<String, Object> map, String nameOfMap, Object... keys) {
         for (Object key : keys) {
             if (!map.containsKey(key)) {
                 logger.warn("{} does not have {}. Skipping it.", nameOfMap, key);
@@ -475,9 +477,16 @@ class GitFlowMetaData {
 
             final String commitMessage = isEmpty(author) ? message
                     : format("%s\n\nBy NiFi Registry user: %s", message, author);
+
+            // Ensure that we are providing a valid GPG Format to jgit, even though
+            // it is not used for signing. This avoids an error if the system's
+            // git config for gpg.format is "ssh".
+            final Config unusedConfig = new Config();
+            unusedConfig.setEnum("gpg", null, "format", GpgConfig.GpgFormat.OPENPGP);
             final RevCommit commit = git.commit()
                     .setMessage(commitMessage)
                     .setSign(false)
+                    .setGpgConfig(new GpgConfig(unusedConfig))
                     .call();
 
             if (flowPointer != null) {

@@ -16,11 +16,10 @@
  */
 package org.apache.nifi.registry.link;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 
-import javax.xml.bind.annotation.XmlAnyAttribute;
-import javax.xml.bind.annotation.XmlAttribute;
+import jakarta.xml.bind.annotation.XmlAnyAttribute;
+import jakarta.xml.bind.annotation.XmlAttribute;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,11 +27,10 @@ import java.util.Map;
 /**
  * Copy of JAX-RS Link.JaxbLink so that Swagger annotations can be applied properly so that getUri() lines up with "href".
  */
-@ApiModel
 public class JaxbLink {
 
     private URI uri;
-    private Map<String,String> params;
+    private Map<String, String> params;
 
     /**
      * Default constructor needed during unmarshalling.
@@ -55,7 +53,7 @@ public class JaxbLink {
      * @param uri    underlying URI.
      * @param params parameters of this link.
      */
-    public JaxbLink(URI uri, Map<String,String> params) {
+    public JaxbLink(URI uri, Map<String, String> params) {
         this.uri = uri;
         this.params = params;
     }
@@ -66,7 +64,7 @@ public class JaxbLink {
      * @return underlying URI.
      */
     @XmlAttribute(name = "href")
-    @ApiModelProperty(name = "href", value = "The href for the link")
+    @Schema(name = "href", description = "The href for the link")
     public URI getUri() {
         return uri;
     }
@@ -77,8 +75,8 @@ public class JaxbLink {
      * @return parameter map.
      */
     @XmlAnyAttribute
-    @ApiModelProperty(name = "params", value = "The params for the link")
-    public Map<String,String> getParams() {
+    @Schema(name = "params", description = "The params for the link")
+    public Map<String, String> getParams() {
         if (params == null) {
             params = new HashMap<>();
         }
@@ -99,7 +97,7 @@ public class JaxbLink {
      *
      * This setter is needed for JAXB unmarshalling.
      */
-    void setParams(Map<String,String> params) {
+    void setParams(Map<String, String> params) {
         this.params = params;
     }
 

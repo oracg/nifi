@@ -20,12 +20,12 @@ import org.apache.commons.cli.MissingOptionException;
 import org.apache.nifi.toolkit.cli.api.CommandException;
 import org.apache.nifi.toolkit.cli.api.Context;
 import org.apache.nifi.toolkit.cli.api.WritableResult;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClient;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.ParamContextClient;
 import org.apache.nifi.toolkit.cli.impl.command.CommandOption;
 import org.apache.nifi.toolkit.cli.impl.command.nifi.AbstractNiFiCommand;
 import org.apache.nifi.toolkit.cli.impl.util.JacksonUtils;
+import org.apache.nifi.toolkit.client.NiFiClient;
+import org.apache.nifi.toolkit.client.NiFiClientException;
+import org.apache.nifi.toolkit.client.ParamContextClient;
 import org.apache.nifi.web.api.dto.ParameterContextDTO;
 import org.apache.nifi.web.api.dto.ParameterDTO;
 import org.apache.nifi.web.api.entity.ParameterContextEntity;
@@ -94,7 +94,7 @@ public class ExportParamContext extends AbstractNiFiCommand<ExportParamContext.E
         }
 
         // sort the entities so that each export is in consistent order
-        final Comparator<ParameterEntity> entityComparator = (p1, p2) ->{
+        final Comparator<ParameterEntity> entityComparator = (p1, p2) -> {
             final String p1Name = p1.getParameter().getName();
             final String p2Name = p2.getParameter().getName();
             return p1Name.compareTo(p2Name);

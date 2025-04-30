@@ -35,6 +35,8 @@ import org.apache.nifi.record.path.filter.NotEqualsFilter;
 import org.apache.nifi.record.path.filter.NotFilter;
 import org.apache.nifi.record.path.filter.RecordPathFilter;
 import org.apache.nifi.record.path.filter.StartsWith;
+import org.apache.nifi.record.path.functions.Anchored;
+import org.apache.nifi.record.path.functions.ArrayOf;
 import org.apache.nifi.record.path.functions.Base64Decode;
 import org.apache.nifi.record.path.functions.Base64Encode;
 import org.apache.nifi.record.path.functions.Coalesce;
@@ -45,8 +47,11 @@ import org.apache.nifi.record.path.functions.FieldName;
 import org.apache.nifi.record.path.functions.FilterFunction;
 import org.apache.nifi.record.path.functions.Format;
 import org.apache.nifi.record.path.functions.Hash;
+import org.apache.nifi.record.path.functions.Join;
+import org.apache.nifi.record.path.functions.MapOf;
 import org.apache.nifi.record.path.functions.PadLeft;
 import org.apache.nifi.record.path.functions.PadRight;
+import org.apache.nifi.record.path.functions.RecordOf;
 import org.apache.nifi.record.path.functions.Replace;
 import org.apache.nifi.record.path.functions.ReplaceNull;
 import org.apache.nifi.record.path.functions.ReplaceRegex;
@@ -103,22 +108,18 @@ public class RecordPathCompiler {
         RecordPathSegment parent = root;
         for (int i = 0; i < pathTree.getChildCount(); i++) {
             final Tree child = pathTree.getChild(i);
-            parent = RecordPathCompiler.buildPath(child, parent, absolute);
+            parent = buildPath(child, parent, absolute);
         }
 
         // If the given path tree is an operator, create a Filter Function that will be responsible for returning true/false based on the provided operation
-        switch (pathTree.getType()) {
-            case EQUAL:
-            case NOT_EQUAL:
-            case LESS_THAN:
-            case LESS_THAN_EQUAL:
-            case GREATER_THAN:
-            case GREATER_THAN_EQUAL:
+        return switch (pathTree.getType()) {
+            case EQUAL, NOT_EQUAL, LESS_THAN, LESS_THAN_EQUAL, GREATER_THAN, GREATER_THAN_EQUAL -> {
                 final RecordPathFilter filter = createFilter(pathTree, null, absolute);
-                return new FilterFunction(pathTree.getText(), filter, absolute);
-        }
+                yield new FilterFunction(pathTree.getText(), filter, absolute);
+            }
+            default -> parent;
+        };
 
-        return parent;
     }
 
     public static RecordPathSegment buildPath(final Tree tree, final RecordPathSegment parent, final boolean absolute) {
@@ -127,7 +128,15 @@ public class RecordPathCompiler {
                 return new RootPath();
             }
             case CHILD_REFERENCE: {
+                if (tree.getChildCount() == 0) {
+                    return new RootPath();
+                }
+
                 final Tree childTree = tree.getChild(0);
+                if (childTree == null) {
+                    return new RootPath();
+                }
+
                 final int childTreeType = childTree.getType();
                 if (childTreeType == FIELD_NAME) {
                     final String childName = childTree.getChild(0).getText();
@@ -270,6 +279,44 @@ public class RecordPathCompiler {
 
                         return new Concat(argPaths, absolute);
                     }
+                    case "arrayOf": {
+                        final int numArgs = argumentListTree.getChildCount();
+
+                        final RecordPathSegment[] argPaths = new RecordPathSegment[numArgs];
+                        for (int i = 0; i < numArgs; i++) {
+                            argPaths[i] = buildPath(argumentListTree.getChild(i), null, absolute);
+                        }
+
+                        return new ArrayOf(argPaths, absolute);
+                    }
+                    case "mapOf": {
+                        final int numArgs = argumentListTree.getChildCount();
+
+                        if (numArgs % 2 != 0) {
+                            throw new RecordPathException("The mapOf function requires an even number of arguments");
+                        }
+
+                        final RecordPathSegment[] argPaths = new RecordPathSegment[numArgs];
+                        for (int i = 0; i < numArgs; i++) {
+                            argPaths[i] = buildPath(argumentListTree.getChild(i), null, absolute);
+                        }
+
+                        return new MapOf(argPaths, absolute);
+                    }
+                    case "recordOf": {
+                        final int numArgs = argumentListTree.getChildCount();
+
+                        if (numArgs % 2 != 0) {
+                            throw new RecordPathException("The recordOf function requires an even number of arguments");
+                        }
+
+                        final RecordPathSegment[] argPaths = new RecordPathSegment[numArgs];
+                        for (int i = 0; i < numArgs; i++) {
+                            argPaths[i] = buildPath(argumentListTree.getChild(i), null, absolute);
+                        }
+
+                        return new RecordOf(argPaths, absolute);
+                    }
                     case "toLowerCase": {
                         final RecordPathSegment[] args = getArgPaths(argumentListTree, 1, functionName, absolute);
                         return new ToLowerCase(args[0], absolute);
@@ -331,15 +378,13 @@ public class RecordPathCompiler {
                     case "unescapeJson": {
                         final int numArgs = argumentListTree.getChildCount();
 
-                        if (numArgs == 1) {
-                            final RecordPathSegment[] args = getArgPaths(argumentListTree, 1, functionName, absolute);
-                            return new UnescapeJson(args[0], null, absolute);
-                        } else {
-                            final RecordPathSegment[] args = getArgPaths(argumentListTree, 2, functionName, absolute);
-                            return new UnescapeJson(args[0], args[1], absolute);
-                        }
+                        final RecordPathSegment[] args = getArgPaths(argumentListTree, numArgs, functionName, absolute);
+                        final RecordPathSegment convertToRecord = numArgs > 1 ? args[1] : null;
+                        final RecordPathSegment recursiveConversion = numArgs > 2 ? args[2] : null;
+
+                        return new UnescapeJson(args[0], convertToRecord, recursiveConversion, absolute);
                     }
-                    case "hash":{
+                    case "hash": {
                         final RecordPathSegment[] args = getArgPaths(argumentListTree, 2, functionName, absolute);
                         return new Hash(args[0], args[1], absolute);
                     }
@@ -389,6 +434,24 @@ public class RecordPathCompiler {
                         final RecordPathSegment[] args = getArgPaths(argumentListTree, 1, functionName, absolute);
                         return new Count(args[0], absolute);
                     }
+                    case "join": {
+                        final int numArgs = argumentListTree.getChildCount();
+                        if (numArgs < 2) {
+                            throw new RecordPathException("Invalid number of arguments: " + functionName + " function takes 2 or more arguments but got " + numArgs);
+                        }
+
+                        final RecordPathSegment[] joinPaths = new RecordPathSegment[numArgs - 1];
+                        for (int i = 0; i < numArgs - 1; i++) {
+                            joinPaths[i] = buildPath(argumentListTree.getChild(i + 1), null, absolute);
+                        }
+
+                        final RecordPathSegment delimiterPath = buildPath(argumentListTree.getChild(0), null, absolute);
+                        return new Join(delimiterPath, joinPaths, absolute);
+                    }
+                    case "anchored": {
+                        final RecordPathSegment[] args = getArgPaths(argumentListTree, 2, functionName, absolute);
+                        return new Anchored(args[0], args[1], absolute);
+                    }
                     case "not":
                     case "contains":
                     case "containsRegex":
@@ -423,24 +486,19 @@ public class RecordPathCompiler {
     }
 
     private static RecordPathFilter createFilter(final Tree operatorTree, final RecordPathSegment parent, final boolean absolute) {
-        switch (operatorTree.getType()) {
-            case EQUAL:
-                return createBinaryOperationFilter(operatorTree, parent, EqualsFilter::new, absolute);
-            case NOT_EQUAL:
-                return createBinaryOperationFilter(operatorTree, parent, NotEqualsFilter::new, absolute);
-            case LESS_THAN:
-                return createBinaryOperationFilter(operatorTree, parent, LessThanFilter::new, absolute);
-            case LESS_THAN_EQUAL:
-                return createBinaryOperationFilter(operatorTree, parent, LessThanOrEqualFilter::new, absolute);
-            case GREATER_THAN:
-                return createBinaryOperationFilter(operatorTree, parent, GreaterThanFilter::new, absolute);
-            case GREATER_THAN_EQUAL:
-                return createBinaryOperationFilter(operatorTree, parent, GreaterThanOrEqualFilter::new, absolute);
-            case FUNCTION:
-                return createFunctionFilter(operatorTree, absolute);
-            default:
-                throw new RecordPathException("Expected an Expression of form <value> <operator> <value> to follow '[' Token but found " + operatorTree);
-        }
+        return switch (operatorTree.getType()) {
+            case EQUAL -> createBinaryOperationFilter(operatorTree, parent, EqualsFilter::new, absolute);
+            case NOT_EQUAL -> createBinaryOperationFilter(operatorTree, parent, NotEqualsFilter::new, absolute);
+            case LESS_THAN -> createBinaryOperationFilter(operatorTree, parent, LessThanFilter::new, absolute);
+            case LESS_THAN_EQUAL ->
+                    createBinaryOperationFilter(operatorTree, parent, LessThanOrEqualFilter::new, absolute);
+            case GREATER_THAN -> createBinaryOperationFilter(operatorTree, parent, GreaterThanFilter::new, absolute);
+            case GREATER_THAN_EQUAL ->
+                    createBinaryOperationFilter(operatorTree, parent, GreaterThanOrEqualFilter::new, absolute);
+            case FUNCTION -> createFunctionFilter(operatorTree, absolute);
+            default ->
+                    throw new RecordPathException("Expected an Expression of form <value> <operator> <value> to follow '[' Token but found " + operatorTree);
+        };
     }
 
     private static RecordPathFilter createBinaryOperationFilter(final Tree operatorTree, final RecordPathSegment parent,
@@ -522,7 +580,7 @@ public class RecordPathCompiler {
         }
 
         final List<RecordPathSegment> argPaths = new ArrayList<>();
-        for (int i=0; i < argumentListTree.getChildCount(); i++) {
+        for (int i = 0; i < argumentListTree.getChildCount(); i++) {
             argPaths.add(buildPath(argumentListTree.getChild(i), null, absolute));
         }
 

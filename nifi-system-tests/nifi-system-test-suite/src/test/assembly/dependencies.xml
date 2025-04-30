@@ -30,7 +30,8 @@
             <useTransitiveFiltering>true</useTransitiveFiltering>
             <includes>
                 <include>*:nifi-bootstrap</include>
-                <include>*:bcprov-jdk15on</include>
+                <include>*:bcutil-jdk18on</include>
+                <include>*:bcprov-jdk18on</include>
                 <include>*:commons-lang3</include>
                 <include>*:slf4j-api</include>
                 <include>*:nifi-api</include>
@@ -45,20 +46,37 @@
             <directoryMode>0770</directoryMode>
             <fileMode>0664</fileMode>
             <useTransitiveFiltering>true</useTransitiveFiltering>
-            <excludes>
-                <exclude>*:nifi-bootstrap</exclude>
-                <exclude>*:nifi-toolkit-cli</exclude>
-                <exclude>*:bcrypt</exclude>
-                <exclude>*:commons-lang3</exclude>
-                <exclude>*:nifi-deprecation-log</exclude>
-                <exclude>*:nifi-security-utils</exclude>
-                <exclude>*:nifi-security-utils-api</exclude>
-                <exclude>*:nifi-xml-processing</exclude>
-                <exclude>*:nifi-nar-provider-assembly</exclude>
-                <exclude>*:nifi-python-framework</exclude>
-                <exclude>*:nifi-python-test-extensions</exclude>
-                <exclude>*:nifi-alternate-config-extensions-nar</exclude>
-            </excludes>
+            <includes>
+                <include>*:nifi-api</include>
+                <include>*:nifi-runtime</include>
+                <include>*:nifi-nar-utils</include>
+                <include>*:nifi-stateless-api</include>
+                <include>*:nifi-framework-api</include>
+                <include>*:nifi-server-api</include>
+                <include>*:nifi-properties</include>
+                <include>*:nifi-property-utils</include>
+                <include>*:nifi-per-process-group-logging</include>
+                <include>*:nifi-python-framework-api</include>
+                <include>*:logback-classic</include>
+                <include>*:logback-core</include>
+                <include>*:jcl-over-slf4j</include>
+                <include>*:log4j-over-slf4j</include>
+                <include>*:jul-to-slf4j</include>
+                <include>*:slf4j-api</include>
+                <include>*:nifi-system-test-authorizer-nar</include>
+                <include>*:nifi-system-test-extensions-nar</include>
+                <include>*:nifi-system-test-extensions-services-nar</include>
+                <include>*:nifi-system-test-extensions-services-api-nar</include>
+                <include>*:nifi-system-test-extensions2-nar</include>
+                <include>*:nifi-system-test-flow-action-reporter-nar</include>
+                <include>*:nifi-jetty-nar</include>
+                <include>*:nifi-framework-nar</include>
+                <include>*:nifi-server-nar</include>
+                <include>*:nifi-standard-services-api-nar</include>
+                <include>*:nifi-provenance-repository-nar</include>
+                <include>*:nifi-standard-shared-nar</include>
+                <include>*:nifi-py4j-nar</include>
+            </includes>
         </dependencySet>
 
         <dependencySet>
@@ -110,6 +128,18 @@
             </unpackOptions>
         </dependencySet>
 
+        <dependencySet>
+            <scope>runtime</scope>
+            <useProjectArtifact>false</useProjectArtifact>
+            <outputDirectory>lib/python-nars</outputDirectory>
+            <directoryMode>0770</directoryMode>
+            <fileMode>0664</fileMode>
+            <useTransitiveFiltering>true</useTransitiveFiltering>
+            <unpack>false</unpack>
+            <includes>
+                <include>*:nifi-python-test-extensions-nar</include>
+            </includes>
+        </dependencySet>
     </dependencySets>
 
 </assembly>

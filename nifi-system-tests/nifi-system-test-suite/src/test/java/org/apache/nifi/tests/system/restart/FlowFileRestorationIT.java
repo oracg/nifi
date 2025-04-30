@@ -20,7 +20,7 @@ package org.apache.nifi.tests.system.restart;
 import org.apache.nifi.stream.io.StreamUtils;
 import org.apache.nifi.tests.system.NiFiInstance;
 import org.apache.nifi.tests.system.NiFiSystemIT;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
+import org.apache.nifi.toolkit.client.NiFiClientException;
 import org.apache.nifi.web.api.entity.ConnectionEntity;
 import org.apache.nifi.web.api.entity.ProcessorEntity;
 import org.junit.jupiter.api.Test;
@@ -87,7 +87,6 @@ public class FlowFileRestorationIT extends NiFiSystemIT {
     }
 
     private byte[] getFlowFileContents(final String connectionId, final int flowFileIndex) throws IOException, NiFiClientException {
-        final byte[] flowFileContents;
         try (final InputStream in = getClientUtil().getFlowFileContent(connectionId, flowFileIndex);
              final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
 

@@ -16,15 +16,21 @@
  */
 package org.apache.nifi.tests.system;
 
-import org.apache.nifi.bootstrap.RunNiFi;
-import org.apache.nifi.registry.security.util.KeystoreType;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClient;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientConfig;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.impl.JerseyNiFiClient;
+import org.apache.nifi.bootstrap.command.process.ManagementServerAddressProvider;
+import org.apache.nifi.bootstrap.command.process.ProcessBuilderProvider;
+import org.apache.nifi.bootstrap.command.process.StandardManagementServerAddressProvider;
+import org.apache.nifi.bootstrap.command.process.StandardProcessBuilderProvider;
+import org.apache.nifi.bootstrap.configuration.ConfigurationProvider;
+import org.apache.nifi.bootstrap.configuration.StandardConfigurationProvider;
+import org.apache.nifi.toolkit.client.NiFiClient;
+import org.apache.nifi.toolkit.client.NiFiClientConfig;
+import org.apache.nifi.toolkit.client.impl.JerseyNiFiClient;
+import org.apache.nifi.util.NiFiProperties;
 import org.apache.nifi.util.file.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLContext;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -34,8 +40,10 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -51,7 +59,7 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
 
     @Override
     public NiFiInstance createInstance() {
-        return new RunNiFiInstance(instanceConfig);
+        return new ProcessNiFiInstance(instanceConfig);
     }
 
     @Override
@@ -78,14 +86,15 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
         return Objects.hash(instanceConfig);
     }
 
-    private static class RunNiFiInstance implements NiFiInstance {
+    private static class ProcessNiFiInstance implements NiFiInstance {
         private final File instanceDirectory;
         private final File configDir;
         private final InstanceConfiguration instanceConfiguration;
         private File bootstrapConfigFile;
-        private RunNiFi runNiFi;
+        private Process process;
+        private SSLContext sslContext;
 
-        public RunNiFiInstance(final InstanceConfiguration instanceConfiguration) {
+        public ProcessNiFiInstance(final InstanceConfiguration instanceConfiguration) {
             this.instanceDirectory = instanceConfiguration.getInstanceDirectory();
             this.bootstrapConfigFile = instanceConfiguration.getBootstrapConfigFile();
             this.instanceConfiguration = instanceConfiguration;
@@ -106,35 +115,40 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
             }
         }
 
+        @Override
         public String toString() {
-            return "RunNiFiInstance[dir=" + instanceDirectory + "]";
+            return "ProcessNiFiInstance[home=%s,process=%s]".formatted(instanceDirectory, process);
         }
 
         @Override
         public void start(final boolean waitForCompletion) {
-            if (runNiFi != null) {
+            if (process != null) {
                 throw new IllegalStateException("NiFi has already been started");
             }
 
             logger.info("Starting NiFi [{}]", instanceDirectory.getName());
 
-            try {
-                this.runNiFi = new RunNiFi(bootstrapConfigFile);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to start NiFi", e);
-            }
+            final Map<String, String> environmentVariables = Map.of("NIFI_HOME", instanceDirectory.getAbsolutePath());
+            final ConfigurationProvider configurationProvider = new StandardConfigurationProvider(environmentVariables, new Properties());
+            final ManagementServerAddressProvider managementServerAddressProvider = new StandardManagementServerAddressProvider(configurationProvider);
+            final ProcessBuilderProvider processBuilderProvider = new StandardProcessBuilderProvider(configurationProvider, managementServerAddressProvider);
 
             try {
-                runNiFi.start(false);
+                final ProcessBuilder processBuilder = processBuilderProvider.getApplicationProcessBuilder();
+                processBuilder.directory(instanceDirectory);
+                process = processBuilder.start();
+
+                logger.info("Started NiFi [{}] PID [{}]", instanceDirectory.getName(), process.pid());
 
                 if (waitForCompletion) {
                     waitForStartup();
                 }
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 throw new RuntimeException("Failed to start NiFi", e);
             }
         }
 
+        @Override
         public void createEnvironment() throws IOException {
             logger.info("Creating environment for NiFi [{}]", instanceDirectory.getName());
 
@@ -172,7 +186,7 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
             if (!destinationCertsDir.exists()) {
                 assertTrue(destinationCertsDir.mkdirs());
             }
-            NiFiSystemKeyStoreProvider.configureKeyStores(destinationCertsDir);
+            sslContext = NiFiSystemKeyStoreProvider.configureKeyStores(destinationCertsDir);
 
             final File flowJsonGz = instanceConfiguration.getFlowJsonGz();
             if (flowJsonGz != null) {
@@ -180,22 +194,28 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
                 Files.copy(flowJsonGz.toPath(), destinationFlowJsonGz.toPath());
             }
 
-            // Write out any Property overrides
+            final Map<String, String> overrides = new HashMap<>();
+            overrides.put(NiFiProperties.SECURITY_KEYSTORE_PASSWD, NiFiSystemKeyStoreProvider.getProtectionParameter());
+            overrides.put(NiFiProperties.SECURITY_KEY_PASSWD, NiFiSystemKeyStoreProvider.getProtectionParameter());
+            overrides.put(NiFiProperties.SECURITY_TRUSTSTORE_PASSWD, NiFiSystemKeyStoreProvider.getProtectionParameter());
+
             final Map<String, String> nifiPropertiesOverrides = instanceConfiguration.getNifiPropertiesOverrides();
-            if (nifiPropertiesOverrides != null && !nifiPropertiesOverrides.isEmpty()) {
-                final File destinationNifiProperties = new File(destinationConf, "nifi.properties");
-                final File sourceNifiProperties = new File(bootstrapConfigFile.getParentFile(), "nifi.properties");
+            if (nifiPropertiesOverrides != null) {
+                overrides.putAll(nifiPropertiesOverrides);
+            }
 
-                final Properties nifiProperties = new Properties();
-                try (final InputStream fis = new FileInputStream(sourceNifiProperties)) {
-                    nifiProperties.load(fis);
-                }
+            final File destinationNifiProperties = new File(destinationConf, "nifi.properties");
+            final File sourceNifiProperties = new File(bootstrapConfigFile.getParentFile(), "nifi.properties");
 
-                nifiPropertiesOverrides.forEach(nifiProperties::setProperty);
+            final Properties nifiProperties = new Properties();
+            try (final InputStream fis = new FileInputStream(sourceNifiProperties)) {
+                nifiProperties.load(fis);
+            }
 
-                try (final OutputStream fos = new FileOutputStream(destinationNifiProperties)) {
-                    nifiProperties.store(fos, null);
-                }
+            overrides.forEach(nifiProperties::setProperty);
+
+            try (final OutputStream fos = new FileOutputStream(destinationNifiProperties)) {
+                nifiProperties.store(fos, null);
             }
         }
 
@@ -221,8 +241,9 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
             }
         }
 
+        @Override
         public boolean isAccessible() {
-            if (runNiFi == null) {
+            if (process == null) {
                 return false;
             }
 
@@ -260,23 +281,29 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
 
         @Override
         public void stop() {
-            if (runNiFi == null) {
+            if (process == null) {
                 logger.info("NiFi Shutdown Ignored (runNiFi==null) [{}]", instanceDirectory.getName());
                 return;
             }
 
-            logger.info("NiFi Shutdown Started [{}]", instanceDirectory.getName());
+            logger.info("NiFi Process [{}] Shutdown Started [{}]", process.pid(), instanceDirectory.getName());
 
             try {
-                runNiFi.stop();
-                logger.info("NiFi Shutdown Completed [{}]", instanceDirectory.getName());
-            } catch (IOException e) {
+                process.destroy();
+                logger.info("NiFi Process [{}] Shutdown Requested [{}]", process.pid(), instanceDirectory.getName());
+                process.waitFor(15, TimeUnit.SECONDS);
+                logger.info("NiFi Process [{}] Shutdown Completed [{}]", process.pid(), instanceDirectory.getName());
+            } catch (final Exception e) {
                 throw new RuntimeException("Failed to stop NiFi", e);
             } finally {
-                runNiFi = null;
+                try {
+                    process.destroyForcibly();
+                } catch (final Exception e) {
+                    logger.warn("NiFi Process [{}] force termination failed", process.pid(), e);
+                }
+                process = null;
             }
         }
-
 
         private void cleanup() throws IOException {
             if (instanceDirectory.exists()) {
@@ -302,6 +329,11 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
         @Override
         public NiFiInstance getNodeInstance(final int nodeIndex) {
             return null;
+        }
+
+        @Override
+        public Optional<SSLContext> getSslContext() {
+            return Optional.of(sslContext);
         }
 
         @Override
@@ -344,16 +376,13 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
 
         @Override
         public void quarantineTroubleshootingInfo(final File destinationDir, final Throwable cause) throws IOException {
-            final String[] dirsToCopy = new String[] { "conf", "logs" };
+            final String[] dirsToCopy = new String[] {"conf", "logs"};
             for (final String dirToCopy : dirsToCopy) {
                 copyContents(new File(getInstanceDirectory(), dirToCopy), new File(destinationDir, dirToCopy));
             }
 
-            if (runNiFi == null) {
+            if (process == null) {
                 logger.warn("NiFi instance is not running so will not capture diagnostics for {}", getInstanceDirectory());
-            } else {
-                final File diagnosticsFile = new File(destinationDir, "diagnostics.txt");
-                runNiFi.diagnostics(diagnosticsFile, false);
             }
 
             final File causeFile = new File(destinationDir, "test-failure-stack-trace.txt");
@@ -364,41 +393,19 @@ public class SpawnedStandaloneNiFiInstanceFactory implements NiFiInstanceFactory
 
         public NiFiClient createClient() throws IOException {
             final Properties nifiProperties = getProperties();
-            final String httpPort = nifiProperties.getProperty("nifi.web.http.port");
             final String httpsPort = nifiProperties.getProperty("nifi.web.https.port");
-            final String webPort = (httpsPort == null || httpsPort.trim().isEmpty()) ? httpPort : httpsPort;
-
-            final String keystoreType = nifiProperties.getProperty("nifi.security.keystoreType");
-            final String truststoreType = nifiProperties.getProperty("nifi.security.truststoreType");
+            final String baseUrl = "https://localhost:%s".formatted(httpsPort);
 
             final NiFiClientConfig clientConfig = new NiFiClientConfig.Builder()
-                .baseUrl("http://localhost:" + webPort)
-                .connectTimeout(30000)
-                .readTimeout(30000)
-                .keystoreFilename(getAbsolutePath(nifiProperties.getProperty("nifi.security.keystore")))
-                .keystorePassword(nifiProperties.getProperty("nifi.security.keystorePasswd"))
-                .keystoreType(keystoreType == null ? null : KeystoreType.valueOf(keystoreType))
-                .truststoreFilename(getAbsolutePath(nifiProperties.getProperty("nifi.security.truststore")))
-                .truststorePassword(nifiProperties.getProperty("nifi.security.truststorePasswd"))
-                .truststoreType(truststoreType == null ? null : KeystoreType.valueOf(truststoreType))
-                .build();
+                    .baseUrl(baseUrl)
+                    .connectTimeout(15000)
+                    .readTimeout(30000)
+                    .sslContext(sslContext)
+                    .build();
 
             return new JerseyNiFiClient.Builder()
-                .config(clientConfig)
-                .build();
-        }
-
-        private String getAbsolutePath(final String filename) {
-            if (filename == null) {
-                return null;
-            }
-
-            final File file = new File(filename);
-            if (file.isAbsolute()) {
-                return file.getAbsolutePath();
-            }
-
-            return new File(instanceDirectory, file.getPath()).getAbsolutePath();
+                    .config(clientConfig)
+                    .build();
         }
     }
 }

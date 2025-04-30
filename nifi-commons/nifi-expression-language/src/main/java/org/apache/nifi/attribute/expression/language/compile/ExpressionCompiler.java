@@ -98,6 +98,7 @@ import org.apache.nifi.attribute.expression.language.evaluation.functions.Prepen
 import org.apache.nifi.attribute.expression.language.evaluation.functions.RandomNumberGeneratorEvaluator;
 import org.apache.nifi.attribute.expression.language.evaluation.functions.RepeatEvaluator;
 import org.apache.nifi.attribute.expression.language.evaluation.functions.ReplaceAllEvaluator;
+import org.apache.nifi.attribute.expression.language.evaluation.functions.ReplaceByPatternEvaluator;
 import org.apache.nifi.attribute.expression.language.evaluation.functions.ReplaceEmptyEvaluator;
 import org.apache.nifi.attribute.expression.language.evaluation.functions.ReplaceEvaluator;
 import org.apache.nifi.attribute.expression.language.evaluation.functions.ReplaceFirstEvaluator;
@@ -232,6 +233,7 @@ import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpre
 import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpressionParser.REPEAT;
 import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpressionParser.REPLACE;
 import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpressionParser.REPLACE_ALL;
+import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpressionParser.REPLACE_BY_PATTERN;
 import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpressionParser.REPLACE_EMPTY;
 import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpressionParser.REPLACE_FIRST;
 import static org.apache.nifi.attribute.expression.language.antlr.AttributeExpressionParser.REPLACE_NULL;
@@ -743,6 +745,11 @@ public class ExpressionCompiler {
                         toStringEvaluator(argEvaluators.get(1), "padding string")), "padRight");
                 }
             }
+            case REPLACE_BY_PATTERN: {
+                verifyArgCount(argEvaluators, 1, "replaceByPattern");
+                return addToken(new ReplaceByPatternEvaluator(toStringEvaluator(subjectEvaluator),
+                    toStringEvaluator(argEvaluators.get(0), "first argument to replace")), "replaceByPattern");
+            }
             case APPEND: {
                 verifyArgCount(argEvaluators, 1, "append");
                 return addToken(new AppendEvaluator(toStringEvaluator(subjectEvaluator),
@@ -815,7 +822,7 @@ public class ExpressionCompiler {
                     toStringEvaluator(argEvaluators.get(0), "first argument to contains")), "contains");
             }
             case IN: {
-                List<Evaluator<String>> list = new ArrayList<Evaluator<String>>();
+                List<Evaluator<String>> list = new ArrayList<>();
                 for (int i = 0; i < argEvaluators.size(); i++) {
                     list.add(toStringEvaluator(argEvaluators.get(i), i + "th argument to in"));
                 }
@@ -1299,7 +1306,7 @@ public class ExpressionCompiler {
 
         // count number of $$ at end of string
         int dollars = 0;
-        for (int i=value.length()-1; i >= 0; i--) {
+        for (int i = value.length() - 1; i >= 0; i--) {
             final char c = value.charAt(i);
             if (c == '$') {
                 dollars++;

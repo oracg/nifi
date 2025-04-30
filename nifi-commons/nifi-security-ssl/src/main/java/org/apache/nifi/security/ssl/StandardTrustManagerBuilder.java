@@ -18,10 +18,8 @@ package org.apache.nifi.security.ssl;
 
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
@@ -33,20 +31,20 @@ public class StandardTrustManagerBuilder implements TrustManagerBuilder {
     private KeyStore trustStore;
 
     /**
-     * Build X.509 Trust Manager using configured properties
+     * Build X.509 Extended Trust Manager using configured properties
      *
-     * @return X.509 Trust Manager
+     * @return X.509 Extended Trust Manager
      */
     @Override
-    public X509TrustManager build() {
+    public X509ExtendedTrustManager build() {
         final TrustManager[] trustManagers = getTrustManagers();
         if (trustManagers == null) {
             throw new BuilderConfigurationException("Trust Managers not found: Trust Store required");
         }
 
-        final Optional<X509TrustManager> configuredTrustManager = Arrays.stream(trustManagers)
-                .filter(trustManager -> trustManager instanceof X509TrustManager)
-                .map(trustManager -> (X509TrustManager) trustManager)
+        final Optional<X509ExtendedTrustManager> configuredTrustManager = Arrays.stream(trustManagers)
+                .filter(trustManager -> trustManager instanceof X509ExtendedTrustManager)
+                .map(trustManager -> (X509ExtendedTrustManager) trustManager)
                 .findFirst();
 
         return configuredTrustManager.orElseThrow(() -> new BuilderConfigurationException("X.509 Trust Manager not found"));
@@ -68,24 +66,9 @@ public class StandardTrustManagerBuilder implements TrustManagerBuilder {
         if (trustStore == null) {
             trustManagers = null;
         } else {
-            final TrustManagerFactory trustManagerFactory = getTrustManagerFactory();
-            try {
-                trustManagerFactory.init(trustStore);
-            } catch (final KeyStoreException e) {
-                throw new BuilderConfigurationException("Trust Manager initialization failed", e);
-            }
+            final TrustManagerFactory trustManagerFactory = new StandardTrustManagerFactoryBuilder().trustStore(trustStore).build();
             trustManagers = trustManagerFactory.getTrustManagers();
         }
         return trustManagers;
-    }
-
-    private TrustManagerFactory getTrustManagerFactory() {
-        final String algorithm = TrustManagerFactory.getDefaultAlgorithm();
-        try {
-            return TrustManagerFactory.getInstance(algorithm);
-        } catch (final NoSuchAlgorithmException e) {
-            final String message = String.format("TrustManagerFactory creation failed with algorithm [%s]", algorithm);
-            throw new BuilderConfigurationException(message, e);
-        }
     }
 }

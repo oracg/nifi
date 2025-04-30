@@ -16,7 +16,7 @@
  */
 package org.apache.nifi.jetty.configuration.connector;
 
-import org.apache.nifi.jetty.configuration.connector.alpn.ALPNServerConnectionFactory;
+import org.eclipse.jetty.alpn.server.ALPNServerConnectionFactory;
 import org.eclipse.jetty.http.HttpScheme;
 import org.eclipse.jetty.http2.HTTP2Cipher;
 import org.eclipse.jetty.http2.server.HTTP2ServerConnectionFactory;
@@ -46,6 +46,14 @@ public class StandardServerConnectorFactory implements ServerConnectorFactory {
 
     private static final Set<ApplicationLayerProtocol> DEFAULT_APPLICATION_LAYER_PROTOCOLS = Collections.singleton(ApplicationLayerProtocol.HTTP_1_1);
 
+    private static final String ALPN_PROTOCOL = "alpn";
+
+    private static final String[] APPLICATION_PROTOCOLS = new String[]{
+            ALPN_PROTOCOL,
+            ApplicationLayerProtocol.H2.getProtocol(),
+            ApplicationLayerProtocol.HTTP_1_1.getProtocol()
+    };
+
     private final Server server;
 
     private final int port;
@@ -59,6 +67,8 @@ public class StandardServerConnectorFactory implements ServerConnectorFactory {
     private boolean wantClientAuth;
 
     private String[] includeSecurityProtocols = INCLUDE_ALL_SECURITY_PROTOCOLS;
+
+    private int requestHeaderSize = 8192;
 
     /**
      * Standard Server Connector Factory Constructor with required properties
@@ -90,7 +100,7 @@ public class StandardServerConnectorFactory implements ServerConnectorFactory {
         } else {
             final List<ConnectionFactory> connectionFactories = new ArrayList<>();
             if (applicationLayerProtocols.contains(ApplicationLayerProtocol.H2)) {
-                final ALPNServerConnectionFactory alpnServerConnectionFactory = new ALPNServerConnectionFactory();
+                final ALPNServerConnectionFactory alpnServerConnectionFactory = new ALPNServerConnectionFactory(APPLICATION_PROTOCOLS);
                 final HTTP2ServerConnectionFactory http2ServerConnectionFactory = new HTTP2ServerConnectionFactory(httpConfiguration);
 
                 connectionFactories.add(alpnServerConnectionFactory);
@@ -162,12 +172,22 @@ public class StandardServerConnectorFactory implements ServerConnectorFactory {
         this.applicationLayerProtocols = applicationLayerProtocols;
     }
 
+    /**
+     * Set the maximum HTTP request header size. The default is 8 KB.
+     *
+     * @param requestHeaderSize maximum HTTP request header size
+     */
+    public void setRequestHeaderSize(int requestHeaderSize) {
+        this.requestHeaderSize = requestHeaderSize;
+    }
+
     protected Server getServer() {
         return server;
     }
 
     protected HttpConfiguration getHttpConfiguration() {
         final HttpConfiguration httpConfiguration = new HttpConfiguration();
+        httpConfiguration.setRequestHeaderSize(requestHeaderSize);
 
         if (sslContext != null) {
             httpConfiguration.setSecurePort(port);

@@ -245,7 +245,7 @@ public class EndpointConnectionPool implements PeerStatusProvider {
                             peerSelector.penalize(peer, penalizationMillis);
                             try {
                                 peer.close();
-                            } catch (final IOException ioe) {
+                            } catch (final IOException ignored) {
                             }
 
                             continue;
@@ -296,7 +296,7 @@ public class EndpointConnectionPool implements PeerStatusProvider {
                 if (commsSession != null) {
                     try {
                         commsSession.close();
-                    } catch (final IOException ioe) {
+                    } catch (final IOException ignored) {
                     }
                 }
 
@@ -341,8 +341,8 @@ public class EndpointConnectionPool implements PeerStatusProvider {
                 protocol.shutdown(peer);
             } catch (final TransmissionDisabledException e) {
                 // User disabled transmission.... do nothing.
-                logger.debug(this + " Transmission Disabled by User");
-            } catch (IOException e1) {
+                logger.debug("{} Transmission Disabled by User", this);
+            } catch (IOException ignored) {
             }
         }
 
@@ -351,8 +351,8 @@ public class EndpointConnectionPool implements PeerStatusProvider {
                 peer.close();
             } catch (final TransmissionDisabledException e) {
                 // User disabled transmission.... do nothing.
-                logger.debug(this + " Transmission Disabled by User");
-            } catch (IOException e1) {
+                logger.debug("{} Transmission Disabled by User", this);
+            } catch (IOException ignored) {
             }
         }
     }
@@ -528,7 +528,7 @@ public class EndpointConnectionPool implements PeerStatusProvider {
 
     @Override
     public String toString() {
-        return "EndpointConnectionPool[Cluster URL=" + siteInfoProvider.getClusterUrls() + "]";
+        return "EndpointConnectionPool[Cluster URL=" + siteInfoProvider.getClusterUrls() + " LocalAddress=" + localAddress + "]";
     }
 
     private class IdEnrichedRemoteDestination implements RemoteDestination {

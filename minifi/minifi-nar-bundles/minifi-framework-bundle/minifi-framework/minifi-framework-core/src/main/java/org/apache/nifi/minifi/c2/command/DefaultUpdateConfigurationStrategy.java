@@ -18,6 +18,7 @@
 package org.apache.nifi.minifi.c2.command;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptySet;
 import static java.util.UUID.randomUUID;
 import static java.util.function.Predicate.not;
 import static org.apache.nifi.minifi.commons.api.MiNiFiConstants.BACKUP_EXTENSION;
@@ -26,30 +27,34 @@ import static org.apache.nifi.minifi.commons.util.FlowUpdateUtils.backup;
 import static org.apache.nifi.minifi.commons.util.FlowUpdateUtils.persist;
 import static org.apache.nifi.minifi.commons.util.FlowUpdateUtils.removeIfExists;
 import static org.apache.nifi.minifi.commons.util.FlowUpdateUtils.revert;
+import static org.apache.nifi.minifi.commons.utils.RetryUtil.retry;
+import static org.apache.nifi.minifi.validator.FlowValidator.validate;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.nifi.c2.client.service.operation.UpdateConfigurationStrategy;
 import org.apache.nifi.components.ValidationResult;
-import org.apache.nifi.components.validation.ValidationStatus;
-import org.apache.nifi.controller.ComponentNode;
+import org.apache.nifi.connectable.Connection;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.controller.ProcessorNode;
-import org.apache.nifi.controller.flow.FlowManager;
+import org.apache.nifi.controller.flow.VersionedDataflow;
+import org.apache.nifi.flow.VersionedConnection;
+import org.apache.nifi.flow.VersionedProcessGroup;
 import org.apache.nifi.groups.ProcessGroup;
 import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.minifi.commons.service.FlowEnrichService;
+import org.apache.nifi.minifi.commons.service.FlowPropertyEncryptor;
+import org.apache.nifi.minifi.commons.service.FlowSerDeService;
+import org.apache.nifi.minifi.validator.ValidationException;
 import org.apache.nifi.services.FlowService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,23 +63,26 @@ public class DefaultUpdateConfigurationStrategy implements UpdateConfigurationSt
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DefaultUpdateConfigurationStrategy.class);
 
-    private static int VALIDATION_RETRY_PAUSE_DURATION_MS = 1000;
-    private static int VALIDATION_MAX_RETRIES = 5;
-    private static int FLOW_DRAIN_RETRY_PAUSE_DURATION_MS = 1000;
-    private static int FLOW_DRAIN_MAX_RETRIES = 60;
+    private static final int FLOW_DRAIN_RETRY_PAUSE_DURATION_MS = 1000;
+    private static final int FLOW_DRAIN_MAX_RETRIES = 60;
 
     private final FlowController flowController;
     private final FlowService flowService;
     private final FlowEnrichService flowEnrichService;
+    private final FlowPropertyEncryptor flowPropertyEncryptor;
+    private final FlowSerDeService flowSerDeService;
     private final Path flowConfigurationFile;
     private final Path backupFlowConfigurationFile;
     private final Path rawFlowConfigurationFile;
     private final Path backupRawFlowConfigurationFile;
 
-    public DefaultUpdateConfigurationStrategy(FlowController flowController, FlowService flowService, FlowEnrichService flowEnrichService, String flowConfigurationFile) {
+    public DefaultUpdateConfigurationStrategy(FlowController flowController, FlowService flowService, FlowEnrichService flowEnrichService,
+                                              FlowPropertyEncryptor flowPropertyEncryptor, FlowSerDeService flowSerDeService, String flowConfigurationFile) {
         this.flowController = flowController;
         this.flowService = flowService;
         this.flowEnrichService = flowEnrichService;
+        this.flowPropertyEncryptor = flowPropertyEncryptor;
+        this.flowSerDeService = flowSerDeService;
         Path flowConfigurationFilePath = Path.of(flowConfigurationFile).toAbsolutePath();
         this.flowConfigurationFile = flowConfigurationFilePath;
         this.backupFlowConfigurationFile = Path.of(flowConfigurationFilePath + BACKUP_EXTENSION);
@@ -84,43 +92,58 @@ public class DefaultUpdateConfigurationStrategy implements UpdateConfigurationSt
     }
 
     @Override
-    public boolean update(byte[] rawFlow) {
+    public void update(byte[] rawFlow) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("Attempting to update flow with content: \n{}", new String(rawFlow, UTF_8));
         }
-
+        Set<String> originalConnectionIds = emptySet();
         try {
-            byte[] enrichedFlowCandidate = flowEnrichService.enrichFlow(rawFlow);
+            originalConnectionIds = findAllExistingConnections(flowController.getFlowManager().getRootGroup())
+                .stream()
+                .map(Connection::getIdentifier)
+                .collect(Collectors.toSet());
+            VersionedDataflow rawDataFlow = flowSerDeService.deserialize(rawFlow);
+
+            VersionedDataflow propertyEncryptedRawDataFlow = flowPropertyEncryptor.encryptSensitiveProperties(rawDataFlow);
+            byte[] serializedPropertyEncryptedRawDataFlow = flowSerDeService.serialize(propertyEncryptedRawDataFlow);
+            VersionedDataflow enrichedFlowCandidate = flowEnrichService.enrichFlow(propertyEncryptedRawDataFlow);
+            byte[] serializedEnrichedFlowCandidate = flowSerDeService.serialize(enrichedFlowCandidate);
+
             backup(flowConfigurationFile, backupFlowConfigurationFile);
             backup(rawFlowConfigurationFile, backupRawFlowConfigurationFile);
-            persist(enrichedFlowCandidate, flowConfigurationFile, true);
-            persist(rawFlow, rawFlowConfigurationFile, false);
-            reloadFlow();
-            return true;
+
+            persist(serializedPropertyEncryptedRawDataFlow, rawFlowConfigurationFile, false);
+            persist(serializedEnrichedFlowCandidate, flowConfigurationFile, true);
+
+            reloadFlow(findAllProposedConnectionIds(enrichedFlowCandidate.getRootGroup()));
+
         } catch (IllegalStateException e) {
             LOGGER.error("Configuration update failed. Reverting and reloading previous flow", e);
             revert(backupFlowConfigurationFile, flowConfigurationFile);
             revert(backupRawFlowConfigurationFile, rawFlowConfigurationFile);
             try {
-                reloadFlow();
-            } catch (IOException ex) {
-                LOGGER.error("Unable to reload the reverted flow", e);
+                reloadFlow(originalConnectionIds);
+            } catch (ValidationException ex) {
+                LOGGER.error("Unable to reload the reverted flow", ex);
+                throw ex;
+            } catch (Exception exception) {
+                throw new RuntimeException(exception);
             }
-            return false;
+            throw e;
         } catch (Exception e) {
             LOGGER.error("Configuration update failed. Reverting to previous flow, no reload is necessary", e);
             revert(backupFlowConfigurationFile, flowConfigurationFile);
             revert(backupRawFlowConfigurationFile, rawFlowConfigurationFile);
-            return false;
+            throw new RuntimeException(e);
         } finally {
             removeIfExists(backupFlowConfigurationFile);
             removeIfExists(backupRawFlowConfigurationFile);
         }
     }
 
-    private void reloadFlow() throws IOException {
+    private void reloadFlow(Set<String> proposedConnectionIds) throws IOException {
         LOGGER.info("Initiating flow reload");
-        stopFlowGracefully(flowController.getFlowManager().getRootGroup());
+        stopFlowGracefully(flowController.getFlowManager().getRootGroup(), proposedConnectionIds);
 
         flowService.load(null);
         flowController.onFlowInitialized(true);
@@ -128,27 +151,37 @@ public class DefaultUpdateConfigurationStrategy implements UpdateConfigurationSt
         List<ValidationResult> validationErrors = validate(flowController.getFlowManager());
         if (!validationErrors.isEmpty()) {
             LOGGER.error("Validation errors found when reloading the flow: {}", validationErrors);
-            throw new IllegalStateException("Unable to start flow due to validation errors");
+            throw new ValidationException("Unable to start flow due to validation errors", validationErrors);
         }
 
         flowController.getFlowManager().getRootGroup().startProcessing();
         LOGGER.info("Flow has been reloaded successfully");
     }
 
-    private void stopFlowGracefully(ProcessGroup rootGroup) {
+    private void stopFlowGracefully(ProcessGroup rootGroup, Set<String> proposedConnectionIds) {
         LOGGER.info("Stopping flow gracefully");
         Optional<ProcessGroup> drainResult = stopSourceProcessorsAndWaitFlowToDrain(rootGroup);
 
-        rootGroup.stopProcessing();
+        waitForStopOrLogTimeOut(rootGroup.stopProcessing());
+        waitForStopOrLogTimeOut(rootGroup.stopComponents());
+
         rootGroup.getRemoteProcessGroups().stream()
             .map(RemoteProcessGroup::stopTransmitting)
             .forEach(this::waitForStopOrLogTimeOut);
+
         drainResult.ifPresentOrElse(
-            rootProcessGroup -> {
-                LOGGER.warn("Flow did not stop within graceful period. Force stopping flow and emptying queues");
-                rootProcessGroup.dropAllFlowFiles(randomUUID().toString(), randomUUID().toString());
-            },
+            emptyQueuesForNonReferencedQueues(proposedConnectionIds),
             () -> LOGGER.info("Flow has been stopped gracefully"));
+    }
+
+    private Consumer<ProcessGroup> emptyQueuesForNonReferencedQueues(Set<String> proposedConnectionIds) {
+        return rootProcessGroup -> {
+            LOGGER.warn("Flow did not stop within graceful period. Force stopping flow and emptying non referenced queues");
+            findAllExistingConnections(rootProcessGroup).stream()
+                .filter(connection -> !proposedConnectionIds.contains(connection.getIdentifier()))
+                .map(Connection::getFlowFileQueue)
+                .forEach(queue -> queue.dropFlowFiles(randomUUID().toString(), randomUUID().toString()));
+        };
     }
 
     private Optional<ProcessGroup> stopSourceProcessorsAndWaitFlowToDrain(ProcessGroup rootGroup) {
@@ -170,57 +203,25 @@ public class DefaultUpdateConfigurationStrategy implements UpdateConfigurationSt
         try {
             future.get(10000, TimeUnit.MICROSECONDS);
         } catch (Exception e) {
-            LOGGER.warn("Unable to stop remote process group within defined interval", e);
+            LOGGER.warn("Unable to stop component within defined interval", e);
         }
     }
 
-    private List<ValidationResult> validate(FlowManager flowManager) {
-        List<? extends ComponentNode> componentNodes = extractComponentNodes(flowManager);
-
-        retry(() -> componentIsInValidatingState(componentNodes), List::isEmpty, VALIDATION_MAX_RETRIES, VALIDATION_RETRY_PAUSE_DURATION_MS)
-            .ifPresent(components -> {
-                LOGGER.error("The following components are still in VALIDATING state: {}", components);
-                throw new IllegalStateException("Maximum retry number exceeded while waiting for components to be validated");
-            });
-
-        return componentNodes.stream()
-            .map(ComponentNode::getValidationErrors)
-            .flatMap(Collection::stream)
-            .toList();
+    private Set<String> findAllProposedConnectionIds(VersionedProcessGroup versionedProcessGroup) {
+        return versionedProcessGroup == null
+            ? emptySet()
+            : Stream.concat(
+                versionedProcessGroup.getConnections().stream().map(VersionedConnection::getInstanceIdentifier),
+                versionedProcessGroup.getProcessGroups().stream().map(this::findAllProposedConnectionIds).flatMap(Set::stream)
+            ).collect(Collectors.toSet());
     }
 
-    private List<? extends ComponentNode> extractComponentNodes(FlowManager flowManager) {
-        return Stream.of(
-                flowManager.getAllControllerServices(),
-                flowManager.getAllReportingTasks(),
-                Set.copyOf(flowManager.getRootGroup().findAllProcessors()))
-            .flatMap(Set::stream)
-            .toList();
-    }
-
-    private List<ComponentNode> componentIsInValidatingState(List<? extends ComponentNode> componentNodes) {
-        return componentNodes.stream()
-            .map(componentNode -> Pair.of((ComponentNode) componentNode, componentNode.performValidation()))
-            .filter(pair -> pair.getRight() == ValidationStatus.VALIDATING)
-            .map(Pair::getLeft)
-            .toList();
-    }
-
-    private <T> Optional<T> retry(Supplier<T> input, Predicate<T> predicate, int maxRetries, int pauseDurationMillis) {
-        int retries = 0;
-        while (true) {
-            T t = input.get();
-            if (predicate.test(t)) {
-                return Optional.empty();
-            }
-            if (retries == maxRetries) {
-                return Optional.ofNullable(t);
-            }
-            retries++;
-            try {
-                Thread.sleep(pauseDurationMillis);
-            } catch (InterruptedException e) {
-            }
-        }
+    private Set<Connection> findAllExistingConnections(ProcessGroup processGroup) {
+        return processGroup == null
+            ? emptySet()
+            : Stream.concat(
+                processGroup.getConnections().stream(),
+                processGroup.getProcessGroups().stream().map(this::findAllExistingConnections).flatMap(Set::stream)
+            ).collect(Collectors.toSet());
     }
 }

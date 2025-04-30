@@ -86,7 +86,7 @@ public class StatelessReloadComponent implements ReloadComponent {
             newType, id, bundleCoordinate, additionalUrls, true, false, null);
 
         // call OnRemoved for the existing processor using the previous instance class loader
-        try (final NarCloseable x = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
+        try (final NarCloseable ignored = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
             final StateManager stateManager = statelessEngine.getStateManagerProvider().getStateManager(id);
             final StandardProcessContext processContext = new StandardProcessContext(existingNode, statelessEngine.getControllerServiceProvider(),
                 stateManager, () -> false, new StatelessNodeTypeProvider());
@@ -128,7 +128,7 @@ public class StatelessReloadComponent implements ReloadComponent {
 
         // ghost components will have a null logger
         if (existingNode.getLogger() != null) {
-            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", new Object[]{id, newType, bundleCoordinate});
+            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", id, newType, bundleCoordinate);
         }
 
         final ExtensionManager extensionManager = statelessEngine.getExtensionManager();
@@ -142,7 +142,7 @@ public class StatelessReloadComponent implements ReloadComponent {
         final ControllerServiceNode newNode = statelessEngine.getFlowManager().createControllerService(newType, id, bundleCoordinate, additionalUrls, true, false, null);
 
         // call OnRemoved for the existing service using the previous instance class loader
-        try (final NarCloseable x = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
+        try (final NarCloseable ignored = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
             final ConfigurationContext configurationContext = new StandardConfigurationContext(existingNode, statelessEngine.getControllerServiceProvider(), null);
             ReflectionUtils.quietlyInvokeMethodsWithAnnotation(OnRemoved.class, existingNode.getControllerServiceImplementation(), configurationContext);
         } finally {
@@ -182,7 +182,7 @@ public class StatelessReloadComponent implements ReloadComponent {
 
         // ghost components will have a null logger
         if (existingNode.getLogger() != null) {
-            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", new Object[]{id, newType, bundleCoordinate});
+            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", id, newType, bundleCoordinate);
         }
 
         final ExtensionManager extensionManager = statelessEngine.getExtensionManager();
@@ -196,7 +196,7 @@ public class StatelessReloadComponent implements ReloadComponent {
         final ReportingTaskNode newNode = statelessEngine.getFlowManager().createReportingTask(newType, id, bundleCoordinate, additionalUrls, true, false, null);
 
         // call OnRemoved for the existing reporting task using the previous instance class loader
-        try (final NarCloseable x = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
+        try (final NarCloseable ignored = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
             ReflectionUtils.quietlyInvokeMethodsWithAnnotation(OnRemoved.class, existingNode.getReportingTask(), existingNode.getConfigurationContext());
         } finally {
             extensionManager.closeURLClassLoader(id, existingInstanceClassLoader);
@@ -227,7 +227,7 @@ public class StatelessReloadComponent implements ReloadComponent {
 
         // ghost components will have a null logger
         if (existingNode.getLogger() != null) {
-            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", new Object[]{id, newType, bundleCoordinate});
+            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", id, newType, bundleCoordinate);
         }
 
         final ExtensionManager extensionManager = statelessEngine.getExtensionManager();
@@ -241,7 +241,7 @@ public class StatelessReloadComponent implements ReloadComponent {
         final ParameterProviderNode newNode = statelessEngine.getFlowManager().createParameterProvider(newType, id, bundleCoordinate, additionalUrls, true, false);
 
         // call OnRemoved for the existing reporting task using the previous instance class loader
-        try (final NarCloseable x = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
+        try (final NarCloseable ignored = NarCloseable.withComponentNarLoader(existingInstanceClassLoader)) {
             ReflectionUtils.quietlyInvokeMethodsWithAnnotation(OnRemoved.class, existingNode.getParameterProvider(), existingNode.getConfigurationContext());
         } finally {
             extensionManager.closeURLClassLoader(id, existingInstanceClassLoader);
@@ -272,7 +272,7 @@ public class StatelessReloadComponent implements ReloadComponent {
 
         // ghost components will have a null logger
         if (existingNode.getLogger() != null) {
-            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", new Object[]{id, newType, bundleCoordinate});
+            existingNode.getLogger().debug("Reloading component {} to type {} from bundle {}", id, newType, bundleCoordinate);
         }
 
         final ExtensionManager extensionManager = statelessEngine.getExtensionManager();

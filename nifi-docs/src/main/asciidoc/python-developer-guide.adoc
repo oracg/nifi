@@ -122,7 +122,7 @@ Processors such as ExecuteScript) tend to be around data manipulation and/or com
     - Calls from Python to Java (and vice versa) are far more expensive than native method calls. Having APIs that are more tailored toward
 specific use cases allows for fewer interactions between the two processes, which greatly improves performance.
 
-As a result, the Python API consists of two different Processor classes that can be implemented: `FlowFileTransform` and `RecordTransform`.
+As a result, the Python API consists of three different Processor classes that can be implemented: `FlowFileTransform`, `RecordTransform` and `FlowFileSource`.
 Others may emerge in the future.
 
 
@@ -153,10 +153,10 @@ class WriteHelloWorld(FlowFileTransform):
         version = '0.0.1-SNAPSHOT'
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        pass
 
     def transform(self, context, flowfile):
-        return FlowFileTransformResult(relationship = "success", contents = "Hello World", attributes = {"greeting", "hello"})
+        return FlowFileTransformResult(relationship = "success", contents = "Hello World", attributes = {"greeting": "hello"})
 ----
 
 The `transform` method is expected to take two arguments: the context (of type `nifiapi.properties.ProcessContext`) and
@@ -283,6 +283,52 @@ If the partition has more than one field in the dictionary, all fields in the di
 the Records to be written to the same output FlowFile.
 
 
+[[flowfile-source]]
+=== FlowFileSource
+
+The `FlowFileSource` API provides a mechanism for creating a FlowFile and routing it based on its textual or binary contents.
+
+In order to implement the `FlowFileSource` API, a Python class must extend from the `nifiapi.FlowFileSource` class
+and implement the `create(ProcessContext)` method, which returns a `FlowFileSourceResult`. Notice, that the difference between
+`FlowFileSource's create(ProcessContext)` and `FlowFileTransform's transform(ProcessContext, InputFlowFile)` methods is
+that the former does not expect an InputFlowFile object. That is because processors based on the `FlowFileSource` API
+are "source" processors that do not accept incoming connections but are capable of creating FlowFiles themselves.
+
+Implementing a Processor based on `FlowFileSource` is very similar to implementing one based on `FlowFileTransform`.
+A simple implementation looks like this:
+
+----
+from nifiapi.flowfilesource import FlowFileSource, FlowFileSourceResult
+
+class CreateFlowFile(FlowFileSource):
+    class Java:
+        implements = ['org.apache.nifi.python.processor.FlowFileSource']
+
+    class ProcessorDetails:
+        version = '0.0.1-SNAPSHOT'
+        description = '''A Python processor that creates FlowFiles.'''
+
+    def __init__(self, **kwargs):
+        pass
+
+    def create(self, context):
+        return FlowFileSourceResult(relationship = 'success', attributes = {'greeting': 'hello'}, contents = 'Hello World!')
+----
+
+As mentioned above, the `create` method only takes one argument: the context (of type `nifiapi.properties.ProcessContext`).
+
+The return type is a `FlowFileSourceResult` that indicates which Relationship the FlowFile should be transferred to,
+any attributes that should be added to the FlowFile and the contents of the FlowFile. The `relationship` is a required argument.
+Each processor based on the `FlowFileSource` API has a `success` relationship and additional relationships can be
+created in the Processor's Python code. `attributes` and `contents` are both optional. If `attributes` is not provided,
+the FlowFile will still have the usual `filename`, `path` and `uuid` attributes, but no additional ones.
+If `contents` is not provided, a FlowFile with no contents (only attributes) will be created.
+In case there is no useful information to return from the `create` method, `return None` can be used instead of returning an
+empty `FlowFileSourceResult`. When `create()` returns with `None`, the processor does not produce any output.
+When there is nothing to return, it might be useful to yield the processor's resources and not schedule the processor
+to run for the period of time defined by the processor's Yield Duration. This can be achieved by calling
+`context.yield_resources()` from the processor's `create` method right before returning `None`.
+
 
 [[property-descriptors]]
 === PropertyDescriptors
@@ -295,7 +341,7 @@ A `PropertyDescriptor` is created using the `nifiapi.properties.PropertyDescript
 arguments: `name` and `description`. All other arguments are optional.
 
 Typically, a Processor will have multiple Property Descriptors. These descriptors are then returned to the NiFi framework by implementing the following
-method in the Processor (regardless of whether it is a `FlowFileTransform` or a `RecordTransform`):
+method in the Processor (regardless of whether it is a `FlowFileTransform`, a `RecordTransform` or a `FlowFileSource`):
 ----
 def getPropertyDescriptors(self)
 ----
@@ -315,7 +361,7 @@ class PrettyPrintJson(FlowFileTransform):
         numspaces = PropertyDescriptor(name="Number of Spaces",
             description="Number of spaces to use for pretty-printing",
             validators=[StandardValidators.POSITIVE_INTEGER_VALIDATOR],
-            defaultValue="4",
+            default_value="4",
             required=True)
         self.descriptors = [numspaces]
 
@@ -351,7 +397,7 @@ invalid. Of course, we might also specify explicit validators that can be used, 
 Each Processor in NiFi must route its outgoing data to some destination. In NiFi, those destinations are called "Relationships."
 Each Processor is responsible for declaring its Relationships.
 
-Both the FlowFileTransform an RecordTransform Processors already have a Relationship named `original` and one named `failure.`
+Both the FlowFileTransform and RecordTransform Processors already have a Relationship named `original` and one named `failure.`
 The `original` relationship should not be used by implementations. This is used only by the framework and allows the input FlowFile
 to be passed on without modification. If the Processor cannot transform its input (because the data is not valid, for example),
 the Processor may route the data to the `failure` relationship.
@@ -364,6 +410,11 @@ def getRelationships(self)
 This method returns a list or a set of `nifiapi.relationship.Relationship` objects. If this method is implemented, the `success`
 Relationship will not automatically be made available. It will need to be created and returned within this list, if it is to be used.
 Regardless of which Relationships are exposed by the implementation, the `failure` and `original` will always be made available.
+
+Unlike FlowFileTransform and RecordTransform Processors, FlowFileSource Processors only have a `success` relationship by default.
+Implementations can use this relationship to route the created FlowFiles. Additional relationships can be exposed by implementing
+the `getRelationships` method. In the case of FlowFileSource implementing `getRelationships` does not remove the `success` relationship.
+Any relationship returned by `getRelationships` appears besides the `success` relationship.
 
 
 [[inner-classes]]
@@ -424,45 +475,154 @@ that there are no longer any invocations of the `transform` method running when 
 
 
 
+[[state-manager]]
+=== State Manager
+
+The `context` object that is the parameter of the `transform()`, `create()`, `onScheduled()` and `onStopped()` methods
+provides access to State Manager through the `getStateManager()` method. State Manager is responsible for providing
+a simple API for storing and retrieving state. For information on State Manager, refer to the NiFi Developer's Guide.
+
+The Python StateManager object returned by `context.getStateManager()` provides access to the underlying Java StateManager.
+With the Python StateManager, the state is handled in the form of Python dictionaries (as opposed to Java Maps).
+Just like in Java, StateManager can handle both `LOCAL` and `CLUSTER` state.
+
+Should an error occur accessing the state using the StateManager's methods, a StateException is thrown that can be caught and
+handled in the Python Processor's code. This enables the Python developer to implement the Processor in such a way that
+when a state-related error occurs, the Processor can continue its operation without disruption.
+If a StateException is thrown by StateManager but not caught in the Processor's code, the ProcessSession is rolled back
+and an error is logged.
+
+Below is an example Processor that uses StateManager. This example assumes that the Processor is executed on
+primary node only, and only on one thread.
+----
+from nifiapi.componentstate import Scope, StateManager, StateException
+from nifiapi.flowfilesource import FlowFileSource, FlowFileSourceResult
+
+
+class CreateFlowFile(FlowFileSource):
+    class Java:
+        implements = ['org.apache.nifi.python.processor.FlowFileSource']
+
+    class ProcessorDetails:
+        version = '0.0.1-SNAPSHOT'
+        description = '''A Python processor that creates FlowFiles and uses StateManager.'''
+        tags = ['test', 'python', 'source', 'state']
+
+    def __init__(self, **kwargs):
+        pass
+
+    def onScheduled(self, context):
+        try:
+            self.state = context.getStateManager().getState(Scope.CLUSTER).toMap()
+        except StateException as e:
+            self.logger.warn('Failed to read processor state. ' + str(e))
+            self.state = dict()
+
+    def create(self, context):
+        old_value = int(self.state.get('FlowFileNumber', '0'))
+        new_value = old_value + 1
+        new_state = {'FlowFileNumber': str(new_value)}
+        try:
+            context.getStateManager().setState(new_state, Scope.CLUSTER)
+            self.state = new_state
+        except StateException as e:
+            self.logger.warn('Failed to save state. ' + str(e))
+
+        return FlowFileSourceResult(relationship='success', attributes=new_state, contents=None)
+----
+
+
+
+[[documenting_use_cases]]
+== Documenting Use Cases
+
+No matter how powerful a piece of software is, it has no value unless people are able to use it. To that end, documentation of Processors is
+very important. While a description of the Processor should be provided in the `ProcessorDetails` class and each PropertyDescriptor is expected to have a description,
+it is usually helpful to also call out specific use cases that can be performed by the Processor. This is particularly important for Processors that perform
+more generalized transformations on objects, where a single Processor may be capable of performing multiple tasks, based on its configuration.
+
+[[use_case_decorator]]
+=== The `@use_case` Decorator
+
+The `@use_case` decorator, defined in the `nifiapi.documentation` module can facilitate this. The decorator takes four arguments:
+
+- `description`: A simple 1 (at most 2) sentence description of the use case. Generally, this should not include any extraneous details,
+                 such as caveats, etc. Those can be provided using the `notes` argument. The description is required.
+- `notes`: Most of the time, 1-2 sentences is sufficient to describe a use case. Those 1-2 sentence should then be returned
+           by the `description`. In the event that the description is not sufficient, details may be provided to
+           further explain, by providing caveats, etc. This is optional.
+- `keywords`: An array of keywords that can be associated with the use case. This is optional.
+- `configuration`: A description of how to configure the Processor for this particular use case. This may include explicit values to set for some properties,
+                    and may include instructions on how to choose the appropriate value for other properties. The configuration is required.
+
+A single Processor may have multiple `@use_case` decorators.
+
+
+[[multi_processor_use_case_decorator]]
+=== The `@multi_processor_use_case` Decorator
+
+When designing and creating Processors, it is important to keep in mind the idea of loose coupling. One Processor should not be dependent on another Processor
+in order to perform its task. That being said, it is often advantageous to build Processors that are designed to work well together. For example, a Processor that
+is able to perform a listing of files in a directory can provide an important capability in and of itself. Similarly, a Processor that is able to ingest the contents
+of a specific file and make that file's contents the contents of a FlowFile is also an important capability in and of itself. But far more powerful than either of these
+individual capabilities is the notion of being able to compose a flow that lists all files in a directory and then ingests each of those files as a FlowFile. This is
+done by using a combination of the two. As such, it is important that the two Processors be able to work together in such a way that the output of the first is
+easily understood as the input of the second.
+
+In this case, it makes sense to document this composition of Processors as a use case so that users can understand how to compose such a pipeline. This is accomplished
+by using the `@multi_processor_use_case` decorator. This decorator is very similar to the <<use_case_decorator>> but instead of a `configuration` element, it has a
+`configurations` element, which is a `list` of `ProcessorConfiguration` objects, where each `ProcessorConfiguration` object has both a `processor_type`, which is the
+name of the Processor, and a `configuration` that explains how to configure that particular Processor. The `configuration` element typically also explains how to connect
+outbound Relationships.
+
+For example, we might use these decorators as such:
+----
+@use_case(description="Retrieve the contents of a given file on disk and create a FlowFile from it without modifying the file",
+          keywords=["file", "filesystem"],
+          configuration="""
+                Set the 'Filename' property to the fully qualified path of the file to ingest
+                Set the 'Completion Strategy' to 'None'
+          """)
+@use_case(description="Retrieve the contents of a given file on disk and create a FlowFile from it, deleting the local file upon success",
+          keywords=["file", "filesystem"],
+          configuration="""
+                Set the 'Filename' property to the fully qualified path of the file to ingest
+                Set the 'Completion Strategy' to 'Delete'
+          """)
+@multi_processor_use_case(
+      description="Ingest all files from a landing directory on the filesystem and delete them after ingesting them.",
+      keywords=["file", "filesystem", "landing directory"],
+      configurations=[
+          ProcessorConfiguration(
+              processor_type="org.apache.nifi.processors.standard.ListFile",
+              configuration="""
+                  Set 'Input Directory' to the directory that files should be ingested from
+                  Set 'Input Directory Location' to 'Local'
+                  """
+          ),
+          ProcessorConfiguration(
+              processor_type="FetchFile",
+              configuration="""
+                Set the 'Filename' property to `${absolute.path}/${filename}`
+                Set the 'Completion Strategy' to 'Delete'
+              """
+          )
+      ])
+class FetchFile(FlowFileTransform):
+----
+
+Note that in this case, we are able to specifically tell the user that the Filename property of FetchFile should be set to the value `${absolute.path}/${filename}`
+because we know that the ListFile Processor will produce these attributes for us.
+
+
 [[requirements]]
 == Requirements
 
-The Python API requires that Python 3.9+ is available on the machine hosting NiFi.
+The Python API requires that Python 3.9, 3.10, 3.11, or 3.12 is available on the machine hosting NiFi.
 
 Each Processor may have its own list of requirements / dependencies. These are made available to the Processor by creating a separate
 environment for each Processor implementation (not for each instance of a Processor on the canvas). PyPI is then used to install these
 dependencies in that environment.
-
-
-[[deploying]]
-== Deploying a Developed Processor
-
-Once a Processor has been developed, it can be made available in NiFi by copying the source of the Python extension to the `$NIFI_HOME/python/extensions` directory by default.
-The actual directory to look for extensions can be configured in `nifi.properties` via properties that have the prefix `nifi.python.extensions.source.directory.`.
-For example, by default, `nifi.python.extensions.source.directory.default` is set to `./python/extensions`. However, additional paths may be added by replacing `default`
-in the property name with some other value.
-
-Any `.py` file found in the directory will be parsed and examined in order to determine whether or not it is a valid NiFi Processor.
-In order to be found, the Processor must have a valid parent (`FlowFileTransform` or `RecordTransform`) and must have an inner class named `Java`
-with a `implements = ['org.apache.nifi.python.processor.FlowFileTransform']` or `implements = ['org.apache.nifi.python.processor.RecordFileTransform']`.
-This will allow NiFi to automatically discover the Processor.
-
-Note, however, that if the Processor implementation is broken into multiple Python modules, those modules will not be made available by default. In order
-to package a Processor along with its modules, the Processor and any related module must be added to a directory that is directly below the Extensions directory.
-For example, if the `WriteNumber.py` file contains a NiFi Processor and also depends on the `ProcessorUtil.py` module, the directory structure would look like this:
-----
-NIFI_HOME/
-    - python/
-        - extensions/
-            ProcessorA.py
-            ProcessorB.py
-            write-number/
-                __init__.py
-                ProcessorUtils.py
-                WriteNumber.py
-----
-By packaging them together in a subdirectory, NiFi knows to expose the modules to one another. However, the ProcessorA module will have no access
-to the `ProcessorUtils` module. Only `WriteNumber` will have access to it.
 
 
 [[reloading]]
@@ -485,10 +645,33 @@ to pickup any changes seamlessly as soon as the Processor is started.
 
 [[dependencies]]
 == Adding Third-Party Dependencies
+Python based Processors can be a single module, or they can be bundled together as a Python package. How you specify third-party dependencies depends on how
+the Processor is packaged.
 
-Third-party dependencies are defined for a Processor using the `dependencies` member of the `ProcessorDetails` inner class.
-This is a list of Strings that indicate the PyPI modules that the Processor depends on. The format is the same format expected
-by PyPI.
+=== Package-level Dependencies
+
+If one or more Processors are defined within a Python package, the package should define a `requirements.txt` file that declares all third-party dependencies
+that are necessary for any Processor in the package. The file structure will then typically look like this:
+----
+my-python-package/
+│
+├── __init__.py
+│
+├── ProcessorA.py
+│
+├── ProcessorB.py
+│
+└── requirements.txt
+----
+
+In this way, all of the requirements will be loaded from the `requirements.txt` file once for the package. There will be no need to load the dependencies once for
+ProcessorA and once for ProcessorB.
+
+
+=== Processor-Level Dependencies
+If your Processor is not a part of a Python package, its dependencies can be declared using the `dependencies` member of the `ProcessorDetails` inner class.
+This is a list of Strings that indicate the PyPI modules that the Processor depends on. The format is the same format expected by PyPI.
+This provides a convenience for declaring third-party dependencies without requiring that Processors be bundled into a package.
 
 For example, to indicate that a Processor needs `pandas` installed, the implementation might
 look like this:
@@ -518,14 +701,66 @@ Here, we accept any version of `pandas` (though the latest is preferred), and we
 [[dependency-isolation]]
 === Dependency Isolation
 
-On startup, NiFi will create a separate Python env (venv) for each Processor implementation and will use `pip` to install
-the specified dependencies from PyPI only into the appropriate Python environment for that Processor. Therefore, dependencies of one
-Processor are not made available to another Processor.
+The first time that a user creates a NiFi Processor of a given type, NiFi will create a separate Python env (venv) for the Processor.
+It will use `pip` to install the specified dependencies from PyPI only into the appropriate Python environment for that Processor.
+Therefore, dependencies of one Processor are not made available to another Processor.
 
 Beyond that, dependencies of one version of a Processor are not made available to other versions of the Processor. So, for example,
 if we have two different versions of the same Processor made available, version `0.0.1` and version `0.0.2`, the dependencies that are
 necessary for version `0.0.1` will not be made available to version `0.0.2` unless version `0.0.2` of the Processor also declares
 those dependencies.
+
+Some environments, however, cannot make use of `pip` for package management. In an air-gapped environment, for example, or in
+environments with strict security policies in place, `pip` may not be available. In such a case, Python processors can be packaged
+using the NiFi ARchive (NAR) format. This is a .zip file with the following specific layout, and uses a filename extension of `.nar`:
+
+```
+my-nar-bundle.nar
++-- META-INF/
+    +-- MANIFEST.MF
++-- NAR-INF/
+    +-- bundled-dependencies/
+        +-- dependency1
+        +-- dependency2
+        +-- ...
+        +-- dependencyN
+MyProcessor.py
+```
+
+
+[[deploying]]
+== Deploying a Developed Processor
+
+Once a Processor has been developed, it can be made available in NiFi using one of two methods.
+For Processors that have been packaged as a NAR file, the NAR file should be copied to NiFi's `lib/` directory or configured extensions directory.
+For Processors that are not pre-packaged as a NAR, the Processor is deployed by copying the source of the Python extension to the `$NIFI_HOME/python/extensions` directory by default.
+The actual directory to look for extensions can be configured in `nifi.properties` via properties that have the prefix `nifi.python.extensions.source.directory.`.
+For example, by default, `nifi.python.extensions.source.directory.default` is set to `./python/extensions`. However, additional paths may be added by replacing `default`
+in the property name with some other value.
+
+Any `.py` file found in the directory will be parsed and examined in order to determine whether or not it is a valid NiFi Processor.
+In order to be found, the Processor must have a valid parent (`FlowFileTransform`, `RecordTransform` or `FlowFileSource`) and must have an inner class named `Java`
+with a `implements = ['org.apache.nifi.python.processor.FlowFileTransform']` or `implements = ['org.apache.nifi.python.processor.RecordFileTransform']`
+or `implements = ['org.apache.nifi.python.processor.FlowFileSource']`.
+This will allow NiFi to automatically discover the Processor.
+
+Note, however, that if the Processor implementation is broken into multiple Python modules, those modules will not be made available by default. In order
+to package a Processor along with its modules, the Processor and any related module must be added to a directory that is directly below the Extensions directory.
+For example, if the `WriteNumber.py` file contains a NiFi Processor and also depends on the `ProcessorUtil.py` module, the directory structure would look like this:
+----
+NIFI_HOME/
+    - python/
+        - extensions/
+            ProcessorA.py
+            ProcessorB.py
+            write-number/
+                __init__.py
+                ProcessorUtils.py
+                WriteNumber.py
+----
+By packaging them together in a subdirectory, NiFi knows to expose the modules to one another. However, the ProcessorA module will have no access
+to the `ProcessorUtils` module. Only `WriteNumber` will have access to it.
+
 
 
 [[troubleshooting]]
@@ -607,7 +842,7 @@ class MyProcessor(FlowFileTransform):
         version = '0.0.1-SNAPSHOT'
         dependencies = ['debugpy']
 
-    def onScheduled(context):
+    def onScheduled(self, context):
         try:
             import debugpy
             debugpy.connect(6688)

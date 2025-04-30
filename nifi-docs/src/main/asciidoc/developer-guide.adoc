@@ -931,7 +931,7 @@ provides a "Usage" menu item in the context menu. Additionally, the
 UI exposes a "Help" link in the top-right corner, from which the same
 Usage information can be found.
 
-The advanced documentation of a Processor is provided as an HTML file named `additionalDetails.html`.
+The advanced documentation of a Processor is provided as a Markdown file named `additionalDetails.md`.
 This file should exist within a directory whose name is the
 fully-qualified
 name of the Processor, and this directory's parent should be named
@@ -969,6 +969,7 @@ The different event types for provenance reporting are:
 |REPLAY                  |Indicates a provenance event for replaying a FlowFile. The UUID of the event indicates the UUID of the original FlowFile that is being replayed. The event contains one Parent UUID that is also the UUID of the FlowFile that is being replayed and one Child UUID that is the UUID of the a newly created FlowFile that will be re-queued for processing
 |ROUTE                   |Indicates that a FlowFile was routed to a specified relationship and provides information about why the FlowFile was routed to this relationship
 |SEND                    |Indicates a provenance event for sending data to an external process
+|UPLOAD                  |Indicates a provenance event for uploading external data to an external system
 |UNKNOWN                 |Indicates that the type of provenance event is unknown because the user who is attempting to access the event is not authorized to know the type
 |======================
 
@@ -1804,10 +1805,6 @@ help the framework understand how to interact with the Processor in terms of sch
 The following annotations from the `org.apache.nifi.annotation.behavior` package can be used to modify how the framework
 will handle your Processor:
 
-  - `EventDriven`: Instructs the framework that the Processor can be scheduled using the Event-Driven scheduling
-    strategy. This strategy is still experimental at this point, but can result in reduced resource utilization
-    on dataflows that do not handle extremely high data rates.
-
   - `SideEffectFree`: Indicates that the Processor does not have any side effects external to NiFi. As a result, the
     framework is free to invoke the Processor many times with the same input without causing any unexpected
     results to occur. This implies idempotent behavior. This can be used by the framework to improve efficiency by
@@ -2640,10 +2637,10 @@ Sometimes it may be desirable to deprecate a component. Whenever this occurs the
 ----
 @DeprecationNotice(
         reason = "Legacy Protocol has been superseded",
-        alternatives = {ListenSyslog.class},
-        classNames = {"org.apache.nifi.processors.standard.ListenRELP"}
+        alternatives = {SomeNewProcessor.class},
+        classNames = {"org.apache.nifi.processors.standard.SomeOldProcessor"}
 )
-public class ListenLegacyProtocol extends AbstractProcessor {}
+public class SomeOldProcessor extends AbstractProcessor {}
 ----
 The `alternatives` property can be used to define an array of recommended replacement Components, while `classNames`
 can be used to represent similar content through an array of class name strings.
@@ -2652,7 +2649,7 @@ Adding the `@DeprecationNotice` annotation renders a warning message in generate
 following warning when the Flow Configuration includes the component:
 
 ----
-Added Deprecated Component ListenLegacyProtocol[id=929a52c7-1e3e-423e-b303-6ca2ef657617] See alternatives [ListenSyslog,ListenRELP]
+Added Deprecated Component SomeOldProcessor[id=929a52c7-1e3e-423e-b303-6ca2ef657617] See alternatives [SomeNewProcessor]
 ----
 
 === Feature Deprecation
@@ -2701,15 +2698,13 @@ deprecationLogger.warn(
 [options="header,footer"]
 |==================================================================================================================================================
 | Package                | Maven Profile         | Description
-| Apache Accumulo Bundle | include-accumulo      | Adds support for https://accumulo.apache.org[Apache Accumulo].
-| Apache Atlas Bundle    | include-atlas         | Adds support for the Apache Atlas data governance tool. The functionality from this bundle is based around reporting tasks that integrate with https://atlas.apache.org[Apache Atlas].
-| Apache Hive 3 Bundle   | include-hive3         | Adds support for Apache Hive 3.X
+| Apache Hadoop Bundle   | include-hadoop        | Adds support for Apache Hadoop with HDFS and Parquet components
 | Apache IoTDB Bundle    | include-iotdb         | Adds support for Apache IoTDB
-| Apache Ranger Bundle   | include-ranger        | Adds support for https://ranger.apache.org[Apache Ranger].
 | ASN.1 Support          | include-asn1          | Adds support for ASN.1
 | Contribution Check     | contrib-check         | Runs various quality checks that are required to be accepted before a contribution can be accepted into the core NiFi code base.
 | Graph Database Bundle  | include-graph         | Adds support for various common graph database scenarios. Support is currently for https://neo4j.com/developer/cypher[Cypher] and https://tinkerpop.apache.org/gremlin.html[Gremlin]-compatible databases such as Neo4J and JanusGraph. Includes controller services that provide driver functionality and a suite of processors for ingestion and querying.
 | Media Bundle           | include-media         | The media bundle provides functionality based on https://tika.apache.org[Apache Tika] for extracting content and metadata from various types of binary formats supported by Apache Tika (ex. PDF, Microsoft Office).
+| QuestDB Bundle         | include-questdb       | Adds support for persistent Status History using QuestDB
 | Snowflake Bundle       | include-snowflake     | Adds support for integration with the https://www.snowflake.com[Snowflake platform].
 | SQL Reporting Bundle   | include-sql-reporting | Adds reporting tasks that are designed to use SQL to update a RDBMS with metrics and other related data from Apache NiFi.
 |==================================================================================================================================================
@@ -2718,7 +2713,7 @@ deprecationLogger.warn(
 
 The following command is used to generate a standard binary distribution of Apache NiFi:
 
-`mvn clean install -Pinclude-grpc,contrib-check`
+`mvn clean install -Pcontrib-check`
 
 == How to contribute to Apache NiFi
 

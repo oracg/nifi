@@ -16,9 +16,6 @@
 name: docker-tests
 
 on:
-  # Run every day at 02:00
-  schedule:
-    - cron: "0 2 * * *"
   push:
     paths:
       - '.github/workflows/docker-tests.yml'
@@ -28,11 +25,8 @@ on:
       - 'nifi-registry/nifi-registry-docker-maven/**'
       - 'nifi-toolkit/nifi-toolkit-assembly/**'
       - 'nifi-toolkit/nifi-toolkit-cli/**'
-      - 'nifi-toolkit/nifi-toolkit-encrypt-config/**'
       - 'minifi/minifi-assembly/**'
       - 'minifi/minifi-docker/**'
-      - 'minifi/minifi-c2/minifi-c2-assembly/**'
-      - 'minifi/minifi-c2/minifi-c2-docker/**'
   pull_request:
     paths:
       - '.github/workflows/docker-tests.yml'
@@ -42,11 +36,8 @@ on:
       - 'nifi-registry/nifi-registry-docker-maven/**'
       - 'nifi-toolkit/nifi-toolkit-assembly/**'
       - 'nifi-toolkit/nifi-toolkit-cli/**'
-      - 'nifi-toolkit/nifi-toolkit-encrypt-config/**'
       - 'minifi/minifi-assembly/**'
       - 'minifi/minifi-docker/**'
-      - 'minifi/minifi-c2/minifi-c2-assembly/**'
-      - 'minifi/minifi-c2/minifi-c2-docker/**'
 
 env:
   DEFAULT_MAVEN_OPTS: >-
@@ -63,7 +54,6 @@ env:
     -ntp
     -ff
 
-# build assemblies (including binaries) for use in Docker Image builds
   MAVEN_BUILD_ARGUMENTS: >-
     -am
     -D skipTests
@@ -71,30 +61,27 @@ env:
     install
   MAVEN_BUILD_PROJECTS: >-
     -pl nifi-assembly
+    -pl nifi-registry/nifi-registry-extensions/nifi-registry-aws/nifi-registry-aws-assembly
     -pl nifi-registry/nifi-registry-assembly
     -pl nifi-toolkit/nifi-toolkit-assembly
     -pl minifi/minifi-assembly
-    -pl minifi/minifi-c2/minifi-c2-assembly
 
   MAVEN_CLEAN_ARGUMENTS: >-
     -T 2.0C
     clean
   MAVEN_CLEAN_PROJECTS: >-
     -pl -nifi-assembly
+    -pl -nifi-registry/nifi-registry-extensions/nifi-registry-aws/nifi-registry-aws-assembly
     -pl -nifi-registry/nifi-registry-assembly
     -pl -nifi-toolkit/nifi-toolkit-assembly
     -pl -nifi-toolkit/nifi-toolkit-cli
-    -pl -nifi-toolkit/nifi-toolkit-encrypt-config
     -pl -minifi/minifi-assembly
-    -pl -minifi/minifi-c2/minifi-c2-assembly
 
-# build and test Docker Images
   MAVEN_DOCKER_ARGUMENTS: >-
     verify
     -P docker
   MAVEN_DOCKER_PROJECTS: >-
     -pl minifi/minifi-docker
-    -pl minifi/minifi-c2/minifi-c2-docker
     -pl nifi-docker/dockermaven
     -pl nifi-registry/nifi-registry-docker-maven/dockermaven
 
@@ -107,14 +94,14 @@ permissions:
 
 jobs:
   build_and_test:
-    timeout-minutes: 120
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     name: Ubuntu Java 21
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up Java Zulu 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: 21

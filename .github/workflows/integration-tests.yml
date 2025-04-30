@@ -16,21 +16,26 @@
 name: integration-tests
 
 on:
-  # Run every day at 03:00
-  schedule:
-    - cron: "0 3 * * *"
   push:
     paths:
       - '.github/workflows/integration-tests.yml'
+      - 'pom.xml'
+      - '**/*-assembly/pom.xml'
+      - '**/*-bom/pom.xml'
       - '**/test/**/*IT.java'
       - '**/test/**/*ITCase.java'
       - '**/test/**/IT*.java'
+      - 'nifi-mock/**'
   pull_request:
     paths:
       - '.github/workflows/integration-tests.yml'
+      - 'pom.xml'
+      - '**/*-assembly/pom.xml'
+      - '**/*-bom/pom.xml'
       - '**/test/**/*IT.java'
       - '**/test/**/*ITCase.java'
       - '**/test/**/IT*.java'
+      - 'nifi-mock/**'
 
 env:
   DEFAULT_MAVEN_OPTS: >-
@@ -56,11 +61,9 @@ env:
     verify
     -P skip-unit-tests
     -P integration-tests
-    -P integration-tests-ci
     -P nifi-registry-integration-tests
   MAVEN_BUILD_EXCLUDE_PROJECTS: >-
     -pl -:minifi-assembly
-    -pl -:minifi-c2-assembly
     -pl -:nifi-assembly
     -pl -:nifi-toolkit-assembly
     -pl -:nifi-registry-assembly
@@ -68,7 +71,6 @@ env:
     -pl -:nifi-runtime-manifest
     -pl -:nifi-runtime-manifest-test
     -pl -:nifi-stateless-assembly
-    -pl -:nifi-stateless-processor-tests
     -pl -:nifi-stateless-system-test-suite
     -pl -:nifi-system-test-suite
     -pl -:nifi-nar-provider-assembly
@@ -94,7 +96,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
       - name: Set up Java Zulu 21
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: 21
@@ -117,7 +119,7 @@ jobs:
           ${{ env.MAVEN_BUILD_EXCLUDE_PROJECTS }}
       - name: Upload Troubleshooting Logs
         if: failure() || cancelled()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ubuntu-21-failsafe-logs
           path: |

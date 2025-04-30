@@ -23,7 +23,7 @@ Apache NiFi Team <dev@nifi.apache.org>
 
 NiFi Registry has the following minimum system requirements:
 
-* Requires Java Development Kit (JDK) 17
+* Requires Java 21
 
 WARNING: When running Registry with only a JRE you may encounter the following error as Flyway (database migration tool) attempts to utilize a resource from the JDK: +
  +
@@ -116,7 +116,7 @@ may be set:
 |==================================================================================================================================================
 
 Each property should take the form of a comma-separated list of common cipher names as specified
-link:https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html[here^].  Regular expressions
+link:https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html[here^].  Regular expressions
 (for example `^.*GCM_SHA256$`) may also be specified.
 
 The semantics match the use of the following Jetty APIs:
@@ -282,6 +282,9 @@ If this value is `none`, NiFi will attempt to validate unsecured/plain tokens. O
 JSON Web Key (JWK) provided through the jwks_uri in the metadata found at the discovery URL
 |`nifi.registry.security.user.oidc.additional.scopes`                | Comma separated scopes that are sent to OpenID Connect Provider in addition to `openid` and `email`.
 |`nifi.registry.security.user.oidc.claim.identifying.user`           | Claim that identifies the authenticated user. The default value is `email`. Claim names may need to be requested using the `nifi.registry.security.user.oidc.additional.scopes` property
+|`nifi.registry.security.user.oidc.claim.groups`                     | Name of the ID token claim that contains an array of group names of which the
+user is a member. Application groups must be supplied from a User Group Provider with matching names in order for the
+authorization process to use ID token claim groups. The default value is `groups`.
 |==================================================================================================================================================
 
 [[authorization]]
@@ -949,9 +952,6 @@ Here, we will address the different properties that are made available in the fi
 |`conf.dir`|The `conf` directory to use for NiFi Registry. By default, this is set to `./conf`
 |`graceful.shutdown.seconds`|When NiFi Registry is instructed to shutdown, the Bootstrap will wait this number of seconds for the process to shutdown cleanly. At this amount of time, if the service is still running, the Bootstrap will `kill` the process, or terminate it abruptly. By default, this is set to `20`.
 |`java.arg.N`|Any number of JVM arguments can be passed to the NiFi Registry JVM when the process is started. These arguments are defined by adding properties to _bootstrap.conf_ that begin with `java.arg.`. The rest of the property name is not relevant, other than to different property names, and will be ignored. The default includes properties for minimum and maximum Java Heap size, the garbage collector to use, etc.
-|`nifi.registry.bootstrap.sensitive.key`|The root key (in hexadecimal format) for encrypted sensitive configuration values. When NiFi Registry is started, this root key is used to decrypt sensitive values from the _nifi-registry.properties_ file into memory for later use.
-
-The <<encrypt-config_tool>> can be used to specify the root key, encrypt sensitive values in _nifi-registry.properties_ and update _bootstrap.conf_.
 |====
 
 
@@ -1762,5 +1762,3 @@ If using the `S3BundlePersistenceProvider`, data will be stored remotely and aut
 === Configuration Files
 
 If using NiFi Registry's policy based authorization, the users, groups, and policies are stored in files on disk named _users.xml_ and _authorizations.xml_. These files should be periodically backed up to an external location. In order to ensure a proper backup, NiFi Registry should be stopped to ensure no authorization data is being written to disk.
-
-If using Ranger, then all authorization information is stored externally and there is nothing to back up.

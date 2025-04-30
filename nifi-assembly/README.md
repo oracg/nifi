@@ -50,7 +50,7 @@ Apache NiFi was made for dataflow. It supports highly configurable directed grap
 
 To start NiFi:
 - [linux/osx] execute bin/nifi.sh start
-- [windows] execute bin/run-nifi.bat
+- [windows] execute bin/nifi.cmd start
 - Obtain the generated username and password from logs/nifi-app.log
   - [linux/osx] For example: `cat logs/nifi-app.log | grep Generated`
 - Direct your browser to https://localhost:8443/nifi/
@@ -63,12 +63,12 @@ If you have questions, you can reach out to our mailing list: dev@nifi.apache.or
 
 - Apache NiFi Slack Workspace: https://apachenifi.slack.com/
 
-  New users can join the workspace using the following [invite link](https://s.apache.org/nifi-community-slack).
+  New users can join the workspace using the following [invite link](https://join.slack.com/t/apachenifi/shared_invite/zt-11njbtkdx-ZRU8FKYSWoEHRJetidy0zA).
 
 - IRC: #nifi on [irc.freenode.net](http://webchat.freenode.net/?channels=#nifi)
 
 ## Requirements
-* JDK 1.8 or higher
+* Java 21
 
 ## License
 

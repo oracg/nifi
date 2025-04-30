@@ -60,7 +60,7 @@ public class RegexDateTimeMatcher implements DateTimeMatcher {
         for (int patternsToUse = subPatterns.size() - 1; patternsToUse >= 0; patternsToUse--) {
             final StringBuilder sb = new StringBuilder();
 
-            for (int i=0; i < patternsToUse; i++) {
+            for (int i = 0; i < patternsToUse; i++) {
                 sb.append(subPatterns.get(i));
             }
 
@@ -359,7 +359,7 @@ public class RegexDateTimeMatcher implements DateTimeMatcher {
                     addSecondInMinute();
                     break;
                 case 'S':
-                    addMillisecond();
+                    addSubsecond();
                     break;
                 case 'z':
                     addGeneralTimeZone();
@@ -384,7 +384,7 @@ public class RegexDateTimeMatcher implements DateTimeMatcher {
         }
 
         private void addShortMonth() {
-            patterns.add("(?:0[1-9]|1[0-2])");
+            patterns.add("(?:0?[1-9]|1[0-2])");
             range = range.plus(1, 2);
         }
 
@@ -468,9 +468,9 @@ public class RegexDateTimeMatcher implements DateTimeMatcher {
             range = range.plus(1, 2);
         }
 
-        private void addMillisecond() {
-            patterns.add("\\d{1,3}");
-            range = range.plus(1, 3);
+        private void addSubsecond() {
+            patterns.add("\\d{1," + charCount + "}");
+            range = range.plus(1, charCount);
         }
 
         private void addGeneralTimeZone() {
@@ -487,7 +487,7 @@ public class RegexDateTimeMatcher implements DateTimeMatcher {
         }
 
         private String getGMTOffsetTimeZone() {
-            // From SimpleDateFormat JavaDocs, GMTOffsetTimeZone defined as: GMT Sign Hours : Minutes
+            // From Date Format JavaDocs, GMTOffsetTimeZone defined as: GMT Sign Hours : Minutes
             // Sign defined as '-' or '+'
             // Hours defined as 1 or 2 digits, Minutes defined as 1 or 2 digits
             // Digit defined as number between 0-9

@@ -19,11 +19,11 @@ package org.apache.nifi.toolkit.cli.impl.command.nifi.params;
 import org.apache.commons.cli.MissingOptionException;
 import org.apache.nifi.toolkit.cli.api.CommandException;
 import org.apache.nifi.toolkit.cli.api.Context;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClient;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.ParamContextClient;
 import org.apache.nifi.toolkit.cli.impl.command.CommandOption;
 import org.apache.nifi.toolkit.cli.impl.result.VoidResult;
+import org.apache.nifi.toolkit.client.NiFiClient;
+import org.apache.nifi.toolkit.client.NiFiClientException;
+import org.apache.nifi.toolkit.client.ParamContextClient;
 import org.apache.nifi.web.api.dto.ParameterContextDTO;
 import org.apache.nifi.web.api.dto.ParameterContextReferenceDTO;
 import org.apache.nifi.web.api.entity.ParameterContextEntity;
@@ -70,7 +70,7 @@ public class SetInheritedParamContexts extends AbstractUpdateParamContextCommand
 
         final String[] inheritedIdArray = inheritedIds.split(",");
         final List<ParameterContextReferenceEntity> referenceEntities = new ArrayList<>();
-        for(final String inheritedId : inheritedIdArray) {
+        for (final String inheritedId : inheritedIdArray) {
             final ParameterContextEntity existingInheritedEntity = paramContextClient.getParamContext(inheritedId, false);
             final ParameterContextReferenceEntity parameterContextReferenceEntity = new ParameterContextReferenceEntity();
             parameterContextReferenceEntity.setId(existingInheritedEntity.getId());
@@ -86,6 +86,16 @@ public class SetInheritedParamContexts extends AbstractUpdateParamContextCommand
         final ParameterContextDTO parameterContextDTO = new ParameterContextDTO();
         parameterContextDTO.setId(existingParameterContextEntity.getId());
         parameterContextDTO.setParameters(existingParameterContextEntity.getComponent().getParameters());
+
+        // we need to explicitly set null for the sensitive parameters as we are getting
+        // **** for the values
+        // on the client side. This is the only way for the server side to know that the
+        // values are not changed
+        // during the update parameter context request
+        parameterContextDTO.getParameters()
+                .stream()
+                .filter(t -> t.getParameter().getSensitive().booleanValue())
+                .forEach(t -> t.getParameter().setValue(null));
 
         final ParameterContextEntity updatedParameterContextEntity = new ParameterContextEntity();
         updatedParameterContextEntity.setId(paramContextId);

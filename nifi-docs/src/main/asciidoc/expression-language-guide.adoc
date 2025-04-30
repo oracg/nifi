@@ -220,6 +220,12 @@ and then press Ctrl+Space, we are provided a pop-up that lists six different fun
 which functions are shown, or we can select one of the functions from the list by double-clicking
 it with the mouse or using the arrow keys to highlight the desired function and pressing Enter.
 
+[[system-properties]]
+=== Framework System Properties
+
+The following system properties are set by the NiFi application, and are available to the Expression Language:
+
+- *nifi.framework.version*: The build version for the NiFi framework. Usage: ${'nifi.framework.version'}
 
 
 [[functions]]
@@ -1072,13 +1078,13 @@ Expressions will provide the following results:
 
 
 
-.PadLeft Examples
+.PadRight Examples
 |=======================================================================================
 | Expression | Value
 | `${greetings:padRight(10)}` | `hello\_____`
 | `${greetings:padRight(10, '@')}` | `hello@@@@@`
 | `${greetings:padRight(10, 'xy')}` | `helloxyxyx`
-| `${greetings:padLeft(10, 'aVeryLongPaddingString')}` | `helloaVery`
+| `${greetings:padRight(10, 'aVeryLongPaddingString')}` | `helloaVery`
 |=======================================================================================
 
 
@@ -1199,6 +1205,40 @@ then the following Expressions will result in the following values:
 | `${str:repeat(2)}` | `abcabc`
 | `${str:repeat(1,2)}` | `abc` or `abcabc` (at random)
 | `${str:repeat( ${str:length()} )}` | `abc` or `abcabc` or `abcabcabc` (at random)
+|================================================================
+
+
+
+
+[.function]
+=== replaceByPattern
+
+*Description*:
+[.description]#Returns a string based on the provided mapping rule in order to replace the subject by another string. If
+the subject is not covered by the mapping rule, then the subject is returned.#
+
+
+*Subject Type*: [.subject]#String#
+
+*Argument*:
+
+- [.argName]#_mapping rule_# : [.argDesc]#The mapping rule is a comma separated list of K:V where K may be a regular
+expression and V is the string to return in case K matches the subject. Examples: 'abc:xyz,foo:poo' and
+'att[0-4]:low_range,att[5-9]:high_range,.*:other'#
+
+*Return Type*: [.returnType]#String#
+
+*Examples*:
+
+If we have an attribute named "str" with the value "abc",
+then the following Expressions will result in the following values:
+
+.ReplaceByPattern Examples
+|================================================================
+| Expression | Value
+| `${str:replaceByPattern('abc:xyz,foo:poo')}` | `xyz`
+| `${str:replaceByPattern('foo:poo')}` | `abc`
+| `${str:replaceByPattern('a.c:xyz,.*:foo')}` | `xyz`
 |================================================================
 
 
@@ -2196,7 +2236,7 @@ Divide. This is to preserve backwards compatibility and to not force rounding er
 [.function]
 === math
 
-*Description*: [.description]#ADVANCED FEATURE. This expression is designed to be used by advanced users only. It utilizes Java Reflection to run arbitrary java.lang.Math static methods. The exact API will depend on the version of Java you are running. The Java 17 API can be found here: link:https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Math.html[https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/lang/Math.html^]
+*Description*: [.description]#ADVANCED FEATURE. This expression is designed to be used by advanced users only. It utilizes Java Reflection to run arbitrary java.lang.Math static methods. The exact API will depend on the version of Java you are running. The Java API can be found here: link:https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html[https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/lang/Math.html^]
  +
 In order to run the correct method, the parameter types must be correct. The Expression Language "Number" (whole number) type is interpreted as a Java "long". The "Decimal" type is interpreted as a Java "double". Running the desired method may require calling "toNumber()" or "toDecimal()" in order to "cast" the value to the desired type. This also is important to remember when cascading "math()" calls since the return type depends on the method that was run.#
 
@@ -2215,7 +2255,7 @@ In order to run the correct method, the parameter types must be correct. The Exp
 
 	- ${literal(2):toDecimal:math("pow", 2.5)} runs Math.pow(2D,2.5D).
 
-	- ${literal(64):toDouble():math("cbrt"):toNumber():math("max", 5)} runs Math.max((Double.valueOf(Math.cbrt(64D))).longValue(), 5L). Note that the toDecimal() is needed because "cbrt" takes a "double" as input and the "64" will get interpreted as a long. The "toDecimal()" call is necessary to correctly call the method. that the "toNumber()" call is necessary because "cbrt" returns a double and the "max" method is must have parameters of the same type and "5" is interpreted as a long.
+	- ${literal(64):toDecimal():math("cbrt"):toNumber():math("max", 5)} runs Math.max((Double.valueOf(Math.cbrt(64D))).longValue(), 5L). Note that the toDecimal() is needed because "cbrt" takes a "double" as input and the "64" will get interpreted as a long. The "toDecimal()" call is necessary to correctly call the method. that the "toNumber()" call is necessary because "cbrt" returns a double and the "max" method is must have parameters of the same type and "5" is interpreted as a long.
 
 	- ${literal(5.4):math("scalb", 2)} runs Math.scalb(5.4, 2). This example is important because NiFi EL treats all whole numbers as "longs" and there is no concept of an "int". "scalb" takes a second parameter of an "int" and it is not overloaded to accept longs so it could not be run without special type handling. In the instance where the Java method cannot be found using parameters of type "double" and "long" the "math()" EL function will attempt to find a Java method with the same name but parameters of "double" and "int".
 
@@ -2615,7 +2655,7 @@ names begin with the letter `a`.
 
 *Description*: [.description]#Returns a URI compliant with RFC 2396. This includes encoding non-US-ASCII characters and
 quoting illegal characters with octets. This expression utilizes the
-link:https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/net/URI.html[java.net.URI^] class to build a URI.
+link:https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/net/URI.html[java.net.URI^] class to build a URI.
 As described in the API, a hierarchical URI consists of seven components represented with the following types:#
 |============================================================================
 | Component   | Type
@@ -2859,14 +2899,14 @@ provides several functions for evaluating the same conditions against groups of 
 
 *Return Type*: [.returnType]#String#
 
-*Examples*: Given that the "abc" attribute contains the value "hello world", "xyz" contains "good bye world",
-	and "filename" contains "file.txt" consider the following examples:
+*Examples*: Given that the "abc" attribute contains the value "hello world", "xyz" contains "goodbye world",
+	consider the following examples:
 
 .join Examples
 |=======================================================================================
 | Expression | Value
-| `${allMatchingAttributes("[ax].*"):substringBefore(" "):join("-")}` | `hello-good`
-| `${allAttributes("abc", "xyz"):join(" now")}` | `hello world nowgood bye world now`
+| `${allMatchingAttributes("[ax].*"):substringBefore(" "):join("-")}` | `hello-goodbye`
+| `${allAttributes("abc", "xyz"):join(" now ")}` | `hello world now goodbye world`
 |=======================================================================================
 
 

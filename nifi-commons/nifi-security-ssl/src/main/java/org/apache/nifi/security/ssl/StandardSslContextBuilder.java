@@ -17,16 +17,14 @@
 package org.apache.nifi.security.ssl;
 
 import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509TrustManager;
 import java.security.KeyManagementException;
 import java.security.KeyStore;
-import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.security.UnrecoverableKeyException;
 import java.util.Objects;
 
 /**
@@ -37,9 +35,13 @@ public class StandardSslContextBuilder implements SslContextBuilder {
 
     private String protocol = DEFAULT_PROTOCOL;
 
+    private KeyManager keyManager;
+
     private KeyStore keyStore;
 
     private char[] keyPassword;
+
+    private TrustManager trustManager;
 
     private KeyStore trustStore;
 
@@ -76,6 +78,17 @@ public class StandardSslContextBuilder implements SslContextBuilder {
     }
 
     /**
+     * Set Kay Manager takes precedence over Key Store
+     *
+     * @param keyManager Key Manager
+     * @return Builder
+     */
+    public StandardSslContextBuilder keyManager(final KeyManager keyManager) {
+        this.keyManager = Objects.requireNonNull(keyManager, "Key Manager required");
+        return this;
+    }
+
+    /**
      * Set Key Store with Private Key and Certificate Entry
      *
      * @param keyStore Key Store
@@ -98,6 +111,17 @@ public class StandardSslContextBuilder implements SslContextBuilder {
     }
 
     /**
+     * Set Trust Manager takes precedence over Trust Store
+     *
+     * @param trustManager Trust Manager
+     * @return Builder
+     */
+    public StandardSslContextBuilder trustManager(final TrustManager trustManager) {
+        this.trustManager = Objects.requireNonNull(trustManager, "Trust Manager required");
+        return this;
+    }
+
+    /**
      * Set Trust Store with Certificate Entries
      *
      * @param trustStore Trust Store
@@ -111,15 +135,14 @@ public class StandardSslContextBuilder implements SslContextBuilder {
     private KeyManager[] getKeyManagers() {
         final KeyManager[] keyManagers;
         if (keyStore == null) {
-            keyManagers = null;
-        } else {
-            final KeyManagerFactory keyManagerFactory = getKeyManagerFactory();
-            try {
-                keyManagerFactory.init(keyStore, keyPassword);
-            } catch (final KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException e) {
-                throw new BuilderConfigurationException("Key Manager initialization failed", e);
+            if (keyManager == null) {
+                keyManagers = null;
+            } else {
+                keyManagers = new KeyManager[]{keyManager};
             }
-            keyManagers = keyManagerFactory.getKeyManagers();
+        } else {
+            final X509ExtendedKeyManager configuredKeyManager = new StandardKeyManagerBuilder().keyStore(keyStore).keyPassword(keyPassword).build();
+            keyManagers = new KeyManager[]{configuredKeyManager};
         }
         return keyManagers;
     }
@@ -127,22 +150,16 @@ public class StandardSslContextBuilder implements SslContextBuilder {
     private TrustManager[] getTrustManagers() {
         final TrustManager[] trustManagers;
         if (trustStore == null) {
-            trustManagers = null;
+            if (trustManager == null) {
+                trustManagers = null;
+            } else {
+                trustManagers = new TrustManager[]{trustManager};
+            }
         } else {
-            final X509TrustManager trustManager = new StandardTrustManagerBuilder().trustStore(trustStore).build();
-            trustManagers = new TrustManager[]{trustManager};
+            final X509TrustManager configuredTrustManager = new StandardTrustManagerBuilder().trustStore(trustStore).build();
+            trustManagers = new TrustManager[]{configuredTrustManager};
         }
         return trustManagers;
-    }
-
-    private KeyManagerFactory getKeyManagerFactory() {
-        final String algorithm = KeyManagerFactory.getDefaultAlgorithm();
-        try {
-            return KeyManagerFactory.getInstance(algorithm);
-        } catch (final NoSuchAlgorithmException e) {
-            final String message = String.format("KeyManagerFactory creation failed with algorithm [%s]", algorithm);
-            throw new BuilderConfigurationException(message, e);
-        }
     }
 
     private SSLContext getSslContext() {

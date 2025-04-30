@@ -46,11 +46,11 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import javax.xml.XMLConstants;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -131,7 +131,7 @@ public class FileUserGroupProvider implements ConfigurableUserGroupProvider {
             // get the tenants file and ensure it exists
             tenantsFile = new File(tenantsPath.getValue());
             if (!tenantsFile.exists()) {
-                logger.info("Creating new users file at {}", new Object[] {tenantsFile.getAbsolutePath()});
+                logger.info("Creating new users file at {}", tenantsFile.getAbsolutePath());
                 saveTenants(new Tenants());
             }
 
@@ -140,7 +140,7 @@ public class FileUserGroupProvider implements ConfigurableUserGroupProvider {
 
             load();
 
-            logger.info(String.format("Users/Groups file loaded at %s", new Date().toString()));
+            logger.info("Users/Groups file loaded at {}", new Date());
         } catch (SecurityProviderCreationException | JAXBException | IllegalStateException | SAXException e) {
             throw new SecurityProviderCreationException(e);
         }
@@ -466,7 +466,7 @@ public class FileUserGroupProvider implements ConfigurableUserGroupProvider {
             if (writer != null) {
                 try {
                     writer.close();
-                } catch (XMLStreamException e) {
+                } catch (XMLStreamException ignored) {
                     // nothing to do here
                 }
             }
@@ -487,14 +487,14 @@ public class FileUserGroupProvider implements ConfigurableUserGroupProvider {
 
             // parse all the users and add them to the current user group provider
             NodeList userNodes = rootElement.getElementsByTagName(USER_ELEMENT);
-            for (int i=0; i < userNodes.getLength(); i++) {
+            for (int i = 0; i < userNodes.getLength(); i++) {
                 Node userNode = userNodes.item(i);
                 users.add(parseUser((Element) userNode));
             }
 
             // parse all the groups and add them to the current user group provider
             NodeList groupNodes = rootElement.getElementsByTagName(GROUP_ELEMENT);
-            for (int i=0; i < groupNodes.getLength(); i++) {
+            for (int i = 0; i < groupNodes.getLength(); i++) {
                 Node groupNode = groupNodes.item(i);
                 groups.add(parseGroup((Element) groupNode));
             }
@@ -519,7 +519,7 @@ public class FileUserGroupProvider implements ConfigurableUserGroupProvider {
                 .name(element.getAttribute(NAME_ATTR));
 
         NodeList groupUsers = element.getElementsByTagName(GROUP_USER_ELEMENT);
-        for (int i=0; i < groupUsers.getLength(); i++) {
+        for (int i = 0; i < groupUsers.getLength(); i++) {
             Element groupUserNode = (Element) groupUsers.item(i);
             builder.addUser(groupUserNode.getAttribute(IDENTIFIER_ATTR));
         }

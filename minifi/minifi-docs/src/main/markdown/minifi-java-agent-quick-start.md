@@ -38,14 +38,14 @@ MiNiFi Java Agent is supported on the following operating systems:
 * Debian 9
 * SUSE Linux Enterprise Server (SLES) 12 SP5 (64-bit)
 
-You can download the MiNiFi Java Agent and the MiNiFi Toolkit from the [MiNiFi download page](https://nifi.apache.org/minifi/download.html).
+You can download the MiNiFi Java Agent and the MiNiFi Toolkit from the [MiNiFi download page](https://nifi.apache.org/download/).
 
 # Installing and Starting MiNiFi
 You have several options for installing and starting MiNiFi.
 
 ## For Linux and Mac OS X Users
 To install MiNiFi:
-1. [Download](https://nifi.apache.org/minifi/download.html) MiNiFi.
+1. [Download](https://nifi.apache.org/download/) MiNiFi.
 2. Extract the file to the location from which you want to the application.
 
 You can also install MiNiFi as a service:
@@ -104,7 +104,7 @@ You can use the MiNiFi Toolkit, located in your MiNiFi installation directory, a
 **Result:** Once you have your _flow.json.raw_ file in the `minifi/conf` directory, launch that instance of MiNiFi and your dataflow begins automatically.
 
 ### Utilizing a C2 Server via the c2 protocol
-If you have a [C2 server](../../../../minifi-c2/README.md) running, you can expose the whole _flow.json_ for the agent to download. As the agent is heartbeating via the C2 protocol, changes in flow version will trigger automatic config updates.
+If you have a C2 server running, you can expose the whole _flow.json_ for the agent to download. As the agent is heartbeating via the C2 protocol, changes in flow version will trigger automatic config updates.
 
 1. Launch C2 server
 2. Configure MiNiFi for C2 capability
@@ -119,6 +119,7 @@ c2.agent.heartbeat.period=5000
 #(Optional) c2.rest.callTimeout=10 sec
 #(Optional) c2.agent.identifier=123-456-789
 c2.agent.class=agentClassName
+```
 3. Start MiNiFi
 4. When a new flow is available on the C2 server, MiNiFi will download it via C2 and restart itself to pick up the changes
 
@@ -155,68 +156,117 @@ For more details about the C2 protocol please visit [Apache NiFi - MiNiFi C2 wik
 
 ## Using Processors Not Packaged with MiNiFi
 MiNiFi is able to use the following processors out of the box:
-* UpdateAttribute
+* AttributesToCSV
 * AttributesToJSON
-* Base64EncodeContent
+* CalculateRecordStats
 * CompressContent
 * ControlRate
 * ConvertCharacterSet
+* ConvertRecord
+* CountText
+* CryptographicHashContent
+* DebugFlow
+* DeduplicateRecord
+* DetectDuplicate
+* DistributeLoad
 * DuplicateFlowFile
+* EncodeContent
+* EnforceOrder
 * EvaluateJsonPath
-* EvaluateRegularExpression
 * EvaluateXPath
 * EvaluateXQuery
 * ExecuteProcess
+* ExecuteSQL
+* ExecuteSQLRecord
 * ExecuteStreamCommand
+* ExtractGrok
+* ExtractRecordSchema
 * ExtractText
+* FetchDistributedMapCache
+* FetchFTP
 * FetchFile
 * FetchSFTP
+* FilterAttribute
+* FlattenJson
+* ForkEnrichment
+* ForkRecord
 * GenerateFlowFile
+* GenerateRecord
+* GenerateTableFetch
 * GetFTP
 * GetFile
-* GetHTTP
-* GetJMSQueue
-* GetJMSTopic
 * GetSFTP
-* HashAttribute
-* HashContent
+* HandleHttpRequest
+* HandleHttpResponse
 * IdentifyMimeType
 * InvokeHTTP
+* JoinEnrichment
+* JoltTransformJSON
+* ListDatabaseTables
+* ListFTP
 * ListFile
 * ListSFTP
+* ListenFTP
 * ListenHTTP
-* ListenRELP
 * ListenSyslog
 * ListenTCP
 * ListenUDP
+* ListenUDPRecord
 * LogAttribute
+* LogMessage
+* LookupAttribute
+* LookupRecord
 * MergeContent
+* MergeRecord
 * ModifyBytes
 * MonitorActivity
+* Notify
+* PackageFlowFile
 * ParseSyslog
-* PostHTTP
+* ParseSyslog5424
+* PartitionRecord
+* PutDatabaseRecord
+* PutDistributedMapCache
 * PutEmail
 * PutFTP
 * PutFile
-* PutJMS
+* PutRecord
 * PutSFTP
+* PutSQL
 * PutSyslog
+* PutTCP
+* PutUDP
+* QueryDatabaseTable
+* QueryDatabaseTableRecord
+* QueryRecord
+* RemoveRecordField
+* RenameRecordField
 * ReplaceText
 * ReplaceTextWithMapping
+* RetryFlowFile
 * RouteOnAttribute
 * RouteOnContent
 * RouteText
+* SampleRecord
 * ScanAttribute
 * ScanContent
 * SegmentContent
 * SplitContent
 * SplitJson
+* SplitRecord
 * SplitText
 * SplitXml
 * TailFile
 * TransformXml
 * UnpackContent
+* UpdateCounter
+* UpdateDatabaseTable
+* UpdateRecord
+* ValidateCsv
+* ValidateJson
+* ValidateRecord
 * ValidateXml
+* Wait
 
 MiNiFi is able to use the StandardSSLContextService out of the box.
 
@@ -228,11 +278,11 @@ If you want to create a dataflow with a processor not shipped with MiNiFi, you c
 
 **Note:** The following processors are also a part of the default distribution but require adding a NAR for a Controller Service not packaged by default. The processors are grouped by the NAR that is required.
 * nifi-dbcp-service-nar
-  * ConvertJSONToSQL
   * PutSQL
   * GenerateTableFetch
-  * ListDatabaseTable
+  * ListDatabaseTables
   * QueryDatabaseTable
+  * QueryDatabaseTableRecord
   * ExecuteSQL
 * nifi-distributed-cache-services-nar
   * DetectDuplicate
@@ -314,7 +364,7 @@ minifi.sh flowStatus processor:TailFile:health,stats,bulletins
 
 **Note:** Any connections, remote process groups or processors names that contain ":", ";" or "," will cause parsing errors when querying.
 
-For details on the `flowStatus` option, see the "FlowStatus Query Option" section of the [Administration Guide](https://nifi.apache.org/minifi/system-admin-guide.html).
+For details on the `flowStatus` option, see the "FlowStatus Query Option" section of the [Administrator's Guide](https://github.com/apache/nifi/blob/main/minifi/minifi-docs/src/main/markdown/System_Admin_Guide.md#flowstatus-query-options).
 
 ## Stopping MiNiFi
 

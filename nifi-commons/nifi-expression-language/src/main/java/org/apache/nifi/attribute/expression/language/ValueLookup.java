@@ -59,12 +59,12 @@ final class ValueLookup implements Map<String, String> {
         }
 
         if (flowFile != null) {
-            maps.add(ValueLookup.extractFlowFileProperties(flowFile));
+            maps.add(extractFlowFileProperties(flowFile));
             maps.add(flowFile.getAttributes());
         }
     }
 
-    static final Map<String, String> extractFlowFileProperties(final FlowFile flowFile) {
+    static Map<String, String> extractFlowFileProperties(final FlowFile flowFile) {
         final Map<String, String> flowFileProps = new HashMap<>();
         flowFileProps.put("flowFileId", String.valueOf(flowFile.getId()));
         flowFileProps.put("fileSize", String.valueOf(flowFile.getSize()));
@@ -180,10 +180,10 @@ final class ValueLookup implements Map<String, String> {
             newMap.put(entry.getKey().getName(), entry.getValue());
         }
         //put attribute maps in reverse order
-        final List<Map<String,String>> listOfMaps = new ArrayList<>(maps);
+        final List<Map<String, String>> listOfMaps = new ArrayList<>(maps);
         Collections.reverse(listOfMaps);
-        for(final Map<String,String> map : listOfMaps){
-            for(final Map.Entry<String, String> entry : map.entrySet()){
+        for (final Map<String, String> map : listOfMaps) {
+            for (final Map.Entry<String, String> entry : map.entrySet()) {
                 newMap.put(entry.getKey(), entry.getValue());
             }
         }

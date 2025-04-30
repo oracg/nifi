@@ -17,10 +17,16 @@
 package org.apache.nifi.serialization.record.field;
 
 import org.apache.nifi.serialization.record.RecordFieldType;
-import org.apache.nifi.serialization.record.util.IllegalTypeConversionException;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.zone.ZoneRules;
 import java.util.Date;
 import java.util.Optional;
 
@@ -38,11 +44,19 @@ public class ObjectTimestampFieldConverterTest {
 
     private static final String EMPTY = "";
 
+    private static final String DATE_DEFAULT = "2000-01-01";
+
     private static final String DATE_TIME_DEFAULT = "2000-01-01 12:00:00";
+
+    private static final String DATE_TIME_ZONE_OFFSET_PATTERN = "yyyy-MM-dd HH:mm:ssZZZZZ";
+
+    private static final String DATE_TIME_UTC_OFFSET = "2000-01-01 12:00:00+00:00";
 
     private static final Optional<String> DATE_TIME_NANOSECONDS_PATTERN = Optional.of("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
 
     private static final String DATE_TIME_NANOSECONDS = "2000-01-01 12:00:00.123456789";
+
+    private static final String TIME_DEFAULT = "12:30:45";
 
     @Test
     public void testConvertFieldNull() {
@@ -55,6 +69,27 @@ public class ObjectTimestampFieldConverterTest {
         final Timestamp field = new Timestamp(System.currentTimeMillis());
         final Timestamp timestamp = CONVERTER.convertField(field, DEFAULT_PATTERN, FIELD_NAME);
         assertEquals(field, timestamp);
+    }
+
+    @Test
+    public void testConvertFieldTimestampNanoseconds() {
+        final Timestamp field = Timestamp.valueOf(DATE_TIME_NANOSECONDS);
+        final Timestamp timestamp = CONVERTER.convertField(field, DEFAULT_PATTERN, FIELD_NAME);
+        assertEquals(field, timestamp);
+    }
+
+    @Test
+    public void testConvertFieldSqlDate() {
+        final java.sql.Date field = java.sql.Date.valueOf(DATE_DEFAULT);
+        final Timestamp timestamp = CONVERTER.convertField(field, DEFAULT_PATTERN, FIELD_NAME);
+        assertEquals(field.getTime(), timestamp.getTime());
+    }
+
+    @Test
+    public void testConvertFieldSqlTime() {
+        final Time field = Time.valueOf(TIME_DEFAULT);
+        final Timestamp timestamp = CONVERTER.convertField(field, DEFAULT_PATTERN, FIELD_NAME);
+        assertEquals(field.getTime(), timestamp.getTime());
     }
 
     @Test
@@ -88,7 +123,7 @@ public class ObjectTimestampFieldConverterTest {
     @Test
     public void testConvertFieldStringFormatNullNumberFormatException() {
         final String field = String.class.getSimpleName();
-        final IllegalTypeConversionException exception = assertThrows(IllegalTypeConversionException.class, () -> CONVERTER.convertField(field, Optional.empty(), FIELD_NAME));
+        final FieldConversionException exception = assertThrows(FieldConversionException.class, () -> CONVERTER.convertField(field, Optional.empty(), FIELD_NAME));
         assertTrue(exception.getMessage().contains(field));
     }
 
@@ -108,7 +143,45 @@ public class ObjectTimestampFieldConverterTest {
 
     @Test
     public void testConvertFieldStringFormatCustomFormatterException() {
-        final IllegalTypeConversionException exception = assertThrows(IllegalTypeConversionException.class, () -> CONVERTER.convertField(DATE_TIME_DEFAULT, DATE_TIME_NANOSECONDS_PATTERN, FIELD_NAME));
+        final FieldConversionException exception = assertThrows(FieldConversionException.class, () -> CONVERTER.convertField(DATE_TIME_DEFAULT, DATE_TIME_NANOSECONDS_PATTERN, FIELD_NAME));
         assertTrue(exception.getMessage().contains(DATE_TIME_DEFAULT));
+    }
+
+    @Test
+    public void testConvertFieldStringFormatCustomZoneOffsetSystemDefault() {
+        final String dateTimeZoneOffset = getDateTimeZoneOffset();
+        final Timestamp timestamp = CONVERTER.convertField(dateTimeZoneOffset, Optional.of(DATE_TIME_ZONE_OFFSET_PATTERN), FIELD_NAME);
+        final Timestamp expected = Timestamp.valueOf(DATE_TIME_DEFAULT);
+        assertEquals(expected, timestamp);
+    }
+
+    @Test
+    public void testConvertFieldStringFormatCustomZoneOffsetCoordinatedUniversalTime() {
+        final Timestamp timestamp = CONVERTER.convertField(DATE_TIME_UTC_OFFSET, Optional.of(DATE_TIME_ZONE_OFFSET_PATTERN), FIELD_NAME);
+        final Timestamp expected = getDateTimeCoordinatedUniversalTime();
+        assertEquals(expected, timestamp);
+    }
+
+    private Timestamp getDateTimeCoordinatedUniversalTime() {
+        final Timestamp dateTime = Timestamp.valueOf(DATE_TIME_DEFAULT);
+        final LocalDateTime localDateTime = dateTime.toLocalDateTime();
+
+        final ZonedDateTime zonedDateTime = ZonedDateTime.of(localDateTime, ZoneOffset.UTC);
+        final Instant instant = zonedDateTime.toInstant();
+        final LocalDateTime localDateTimeAdjusted = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+        return Timestamp.valueOf(localDateTimeAdjusted);
+    }
+
+    private String getDateTimeZoneOffset() {
+        final Timestamp inputTimestamp = Timestamp.valueOf(DATE_TIME_DEFAULT);
+        final LocalDateTime inputLocalDateTime = inputTimestamp.toLocalDateTime();
+
+        final ZoneId systemDefaultZoneId = ZoneOffset.systemDefault();
+        final ZoneRules zoneRules = systemDefaultZoneId.getRules();
+        final ZoneOffset inputZoneOffset = zoneRules.getOffset(inputLocalDateTime);
+        final String inputZoneOffsetId = inputZoneOffset.getId();
+
+        // Get Date Time with Zone Offset from current system configuration
+        return DATE_TIME_DEFAULT + inputZoneOffsetId;
     }
 }

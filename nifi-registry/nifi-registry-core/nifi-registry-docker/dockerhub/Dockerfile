@@ -55,19 +55,21 @@ USER nifi
 
 # Download, validate, and expand Apache NiFi Toolkit binary.
 RUN curl -fSL ${NIFI_TOOLKIT_BINARY_URL} -o ${NIFI_REGISTRY_BASE_DIR}/${NIFI_TOOLKIT_BINARY} \
-    && echo "$(curl ${NIFI_TOOLKIT_BINARY_URL}.sha256) *${NIFI_REGISTRY_BASE_DIR}/${NIFI_TOOLKIT_BINARY}" | sha256sum -c - \
+    && echo "$(curl ${NIFI_TOOLKIT_BINARY_URL}.sha512) *${NIFI_REGISTRY_BASE_DIR}/${NIFI_TOOLKIT_BINARY}" | sha512sum -c - \
     && unzip ${NIFI_REGISTRY_BASE_DIR}/${NIFI_TOOLKIT_BINARY} -d ${NIFI_REGISTRY_BASE_DIR} \
     && rm ${NIFI_REGISTRY_BASE_DIR}/${NIFI_TOOLKIT_BINARY} \
     && mv ${NIFI_REGISTRY_BASE_DIR}/nifi-toolkit-${NIFI_REGISTRY_VERSION} ${NIFI_TOOLKIT_HOME} \
-    && ln -s ${NIFI_TOOLKIT_HOME} ${NIFI_REGISTRY_BASE_DIR}/nifi-toolkit-${NIFI_REGISTRY_VERSION}
+    && ln -s ${NIFI_TOOLKIT_HOME} ${NIFI_REGISTRY_BASE_DIR}/nifi-toolkit-${NIFI_REGISTRY_VERSION} \
+    && chown -h nifi:nifi ${NIFI_TOOLKIT_HOME}
 
 # Download, validate, and expand Apache NiFi-Registry binary.
 RUN curl -fSL ${NIFI_REGISTRY_BINARY_URL} -o ${NIFI_REGISTRY_BASE_DIR}/${NIFI_REGISTRY_BINARY} \
-    && echo "$(curl ${NIFI_REGISTRY_BINARY_URL}.sha256) *${NIFI_REGISTRY_BASE_DIR}/${NIFI_REGISTRY_BINARY}" | sha256sum -c - \
+    && echo "$(curl ${NIFI_REGISTRY_BINARY_URL}.sha512) *${NIFI_REGISTRY_BASE_DIR}/${NIFI_REGISTRY_BINARY}" | sha512sum -c - \
     && unzip ${NIFI_REGISTRY_BASE_DIR}/${NIFI_REGISTRY_BINARY} -d ${NIFI_REGISTRY_BASE_DIR} \
     && rm ${NIFI_REGISTRY_BASE_DIR}/${NIFI_REGISTRY_BINARY} \
     && mv ${NIFI_REGISTRY_BASE_DIR}/nifi-registry-${NIFI_REGISTRY_VERSION} ${NIFI_REGISTRY_HOME} \
     && ln -s ${NIFI_REGISTRY_HOME} ${NIFI_REGISTRY_BASE_DIR}/nifi-registry-${NIFI_REGISTRY_VERSION} \
+    && chown -h nifi:nifi ${NIFI_REGISTRY_HOME} \
     && chown -R nifi:nifi ${NIFI_REGISTRY_HOME}
 
 # Web HTTP(s) ports

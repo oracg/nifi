@@ -16,25 +16,28 @@
 name: system-tests
 
 on:
-  # Run every day at 00:00
-  schedule:
-    - cron: "0 0 * * *"
   push:
     paths:
       - '.github/workflows/system-tests.yml'
+      - 'c2/c2-protocol/**'
       - 'nifi-system-tests/**'
       - 'nifi-api/**'
       - 'nifi-framework-api/**'
-      - 'nifi-nar-bundles/nifi-framework-bundle/**'
+      - 'nifi-framework-bundle/**'
+      - 'nifi-extension-bundles/nifi-py4j-extension-bundle/**'
       - 'nifi-stateless/**'
+      - 'nifi-mock/**'
   pull_request:
     paths:
       - '.github/workflows/system-tests.yml'
+      - 'c2/c2-protocol/**'
       - 'nifi-system-tests/**'
       - 'nifi-api/**'
       - 'nifi-framework-api/**'
-      - 'nifi-nar-bundles/nifi-framework-bundle/**'
+      - 'nifi-framework-bundle/**'
+      - 'nifi-extension-bundles/nifi-py4j-extension-bundle/**'
       - 'nifi-stateless/**'
+      - 'nifi-mock/**'
 
 env:
   DEFAULT_MAVEN_OPTS: >-
@@ -60,6 +63,7 @@ env:
     -pl :nifi-python-framework
     -pl :nifi-python-extension-api
     -pl :nifi-python-test-extensions
+    -pl :nifi-py4j-integration-tests
     -pl nifi-system-tests/nifi-system-test-suite
     -pl nifi-system-tests/nifi-stateless-system-test-suite
 
@@ -75,37 +79,34 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ ubuntu-latest, macos-latest ]
+        os: [ ubuntu-latest, macos-14 ]
         version: [ 21 ]
     timeout-minutes: 120
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.os }} Java ${{ matrix.version }}
-    env:
-      # default to Amazon Corretto JDK
-      JAVA_DISTRIBUTION: corretto
     steps:
       - name: System Information
         run: |
-          hostname
           if [ "${{ runner.os }}" = "macOS" ]; then top -l 1 | grep PhysMem && sysctl machdep.cpu; else cat /proc/cpuinfo && cat /proc/meminfo; fi
           df
-      # Zulu JDK appears to be more reliable for MacOS
-      - name: Use Java distribution Zulu
-        if: ${{ runner.os == 'macOS' }}
-        run: echo "JAVA_DISTRIBUTION=zulu" >> "$GITHUB_ENV"
       - name: Checkout Code
         uses: actions/checkout@v4
-      - name: Set up Java ${{ env.JAVA_DISTRIBUTION }} ${{ matrix.version }}
-        uses: actions/setup-java@v3
+      - name: Set up Java ${{ matrix.version }}
+        uses: actions/setup-java@v4
         with:
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
+          distribution: 'zulu'
           java-version: ${{ matrix.version }}
           cache: 'maven'
 
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10'
+      - name: Set up Astral uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.10'
+          enable-cache: false
 
       - name: Build Dependencies
         env:
@@ -125,7 +126,7 @@ jobs:
           ${{ env.MAVEN_PROJECTS }}
       - name: Upload Troubleshooting Logs
         if: failure() || cancelled()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}-${{ matrix.version }}-troubleshooting-logs
           path: |

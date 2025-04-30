@@ -93,7 +93,7 @@ UI may become unavailable.
 
 *Controller Service*: Controller Services are extension points that, after being added and configured by a DFM in the User Interface, will start up when NiFi starts up and provide information for use by other components (such as processors or other controller services). A common Controller Service used by several components is the StandardSSLContextService. It provides the ability to configure keystore and/or truststore properties once and reuse that configuration throughout the application. The idea is that, rather than configure this information in every processor that might need it, the controller service provides it for any processor to use as needed.
 
-*Reporting Task*: Reporting Tasks run in the background to provide statistical reports about what is happening in the NiFi instance. The DFM adds and configures Reporting Tasks in the User Interface as desired. Common reporting tasks include the ControllerStatusReportingTask, MonitorDiskUsage reporting task, MonitorMemory reporting task, and the StandardGangliaReporter.
+*Reporting Task*: Reporting Tasks run in the background to provide statistical reports about what is happening in the NiFi instance. The DFM adds and configures Reporting Tasks in the User Interface as desired. Common reporting tasks include the ControllerStatusReportingTask, MonitorDiskUsage reporting task, and the MonitorMemory reporting task.
 
 *Flow Analysis Rules*: Flow Analysis Rules can analyze components or (parts of) the flow. They may produce rule violations which can help adjust or maintain optimal flow design. The DFM adds and configures Flow Analysis Rules in the User Interface as desired.
 
@@ -577,10 +577,8 @@ The first configuration option is the Scheduling Strategy. There are three possi
 |1-12 or JAN-DEC
 
 |Day of Week
-|1-7 or SUN-SAT
+|0-7 or SUN-SAT (0 or 7 is Sunday)
 
-|Year (optional)
-|empty, 1970-2099
 |===
 
 You typically specify values one of the following ways:
@@ -598,11 +596,8 @@ example, 1L indicates the last Sunday of the month.
 
 For example:
 
-* The string `0 0 13 * * ?` indicates that you want to schedule the processor to run at 1:00 PM every day.
+* The string `0 0 13 * * *` indicates that you want to schedule the processor to run at 1:00 PM every day.
 * The string `0 20 14 ? * MON-FRI` indicates that you want to schedule the processor to run at 2:20 PM every Monday through Friday.
-* The string `0 15 10 ? * 6L 2011-2017` indicates that you want to schedule the processor to run at 10:15 AM, on the last Friday of every month, between 2011 and 2017.
-
-For additional information and examples, see the link:https://www.quartz-scheduler.org/documentation/quartz-2.2.2/tutorials/tutorial-lesson-06.html[cron triggers tutorial] in the link:https://www.quartz-scheduler.org/documentation/[Quartz Documentation^].
 
 ===== Concurrent Tasks
 Next, the Scheduling tab provides a configuration option named 'Concurrent Tasks'. This controls how many threads the Processor
@@ -700,9 +695,9 @@ In order for a Processor to be considered valid and able to run, each Relationsh
 
 ===== Automatically Retry
 Users can also configure whether or not FlowFiles routed to a given Relationship should be retried. If a FlowFile is routed to any Relationship that is configured to be retried,
-the FlowFile will be re-queued and the Processor will attempt to process it again. If the Processor routes the FlowFile to a retriable Relationship again (either the same Relationship
+the FlowFile will be re-queued and the Processor will attempt to process it again. If the Processor routes the FlowFile to a retryable Relationship again (either the same Relationship
 or another that is configured to be retried), it will be re-queued again, up to the number of
-times specified by the user. If the Processor routes the FlowFile to a retriable Relationship after the specified number of retries, the FlowFile will be transferred to
+times specified by the user. If the Processor routes the FlowFile to a retryable Relationship after the specified number of retries, the FlowFile will be transferred to
 the Connection(s) that include that Relationship - or auto-terminated, as configured.
 If the Processor routes the FlowFile to any Relationship that is not configured to be retried, it will be routed to that Relationship immediately.
 
@@ -710,7 +705,7 @@ For example, consider a Processor with two relationships: `success` and `failure
 A user configures the `failure` Relationship to retry 10 times and also be configured to auto-terminate. In this
 case, if an incoming FlowFile is routed to the `failure` Relationship,
 it will be retried up to 10 times. After 10 attempts, if it is routed to `failure` again, it will be auto-terminated. However, if at any point it is
-routed to `success`, it will immediatley be transferred to the Connection(s) that include the `success` Relationship and not retried any further.
+routed to `success`, it will immediately be transferred to the Connection(s) that include the `success` Relationship and not retried any further.
 
 ====== Number of Retry Attempts
 For relationships set to retry, this number indicates how many times a FlowFile will attempt to reprocess before it is routed elsewhere.
@@ -1437,14 +1432,21 @@ The following prioritizers are available:
 
 - *FirstInFirstOutPrioritizer*: Given two FlowFiles, the one that reached the connection first will be processed first.
 - *NewestFlowFileFirstPrioritizer*: Given two FlowFiles, the one that is newest in the dataflow will be processed first.
-- *OldestFlowFileFirstPrioritizer*: Given two FlowFiles, the one that is oldest in the dataflow will be processed first. 'This is the default scheme that is used if no prioritizers are selected'.
+- *OldestFlowFileFirstPrioritizer*: Given two FlowFiles, the one that is oldest in the dataflow will be processed first.
 - *PriorityAttributePrioritizer*: Given two FlowFiles, an attribute called “priority” will be extracted. The one that has the lowest priority value will be processed first.
 ** Note that an UpdateAttribute processor should be used to add the "priority" attribute to the FlowFiles before they reach a connection that has this prioritizer set.
 ** If only one has that attribute it will go first.
 ** Values for the "priority" attribute can be alphanumeric, where "a" will come before "z" and "1" before "9"
 ** If "priority" attribute cannot be parsed as a long, unicode string ordering will be used. For example: "99" and "100" will be ordered so the FlowFile with "99" comes first, but "A-99" and "A-100" will sort so the FlowFile with "A-100" comes first.
 
+In case no prioritizers are selected or the selected prioritizers do not differentiate between the compared FlowFiles,
+processing order is not further specified but an implementation detail that might change between versions of NiFi.
+
 NOTE: With a <<load_balance_strategy>> configured, the connection has a queue per node in addition to the local queue. The prioritizer will sort the data in each queue independently.
+
+NOTE: When a connection has more FlowFiles than the `nifi.queue.swap.threshold`, new FlowFiles arriving at that connection
+are not prioritized against the active queue, instead they are sent directly to swap. They will be prioritized when they
+get brought back into memory.
 
 ==== Changing Configuration and Context Menu Options
 After a connection has been drawn between two components, the connection's configuration may be changed, and the connection may be moved to a new destination; however, the processors on either side of the connection must be stopped before a configuration or destination change may be made.
@@ -2071,7 +2073,7 @@ image:align-horizontally-after.png["Align Horizontally Example Before"]
 [[search]]
 == Search Components in DataFlow
 
-NiFi UI provides searching functionality in order to help easily find components on the canvas. You can use search to find components by name, type, identifier, configuration properties, and their values. Search also makes it possible to refine and narrow the search result based on certain conditions using Filters and Keywords.
+NiFi UI provides searching functionality in order to help easily find components on the canvas. You can use search to find components by name, type, identifier, bundle, configuration properties, and configuration values. Search also makes it possible to refine and narrow the search result based on certain conditions using Filters and Keywords.
 
 [caption="Example 1: "]
 .The result will contain components that match for "processor1".
@@ -2140,6 +2142,8 @@ The supported keywords are the following:
 - *Scheduling strategy*
 
 ** *timer*: Adds Processors to the result list where the Scheduling Strategy is "Timer Driven".
+
+** *cron*: Adds Processors to the result list where the Scheduling Strategy is "CRON Driven".
 
 - *Execution*
 
@@ -2408,9 +2412,7 @@ a Connection's context menu. The listing will return the top 100 FlowFiles in th
 configured priority. The listing can be performed even if the source and destination are actively running.
 
 Additionally, details for a FlowFile in the listing can be viewed by clicking the "Details" button (image:iconDetails.png["Details"]) in the left most column. From here, the FlowFile details and attributes are available as well as buttons for
-downloading or viewing the content. Viewing the content is only available if the `nifi.content.viewer.url` has been configured.
-If the source or destination of the Connection are actively running, there is a chance that the desired FlowFile will
-no longer be in the active queue.
+downloading or viewing the content. If the source or destination of the Connection are actively running, there is a chance that the desired FlowFile will no longer be in the active queue.
 
 The FlowFiles enqueued in a Connection can also be deleted when necessary. The removal of the FlowFiles is initiated
 via `Empty queue` in the Connection's context menu. This action can also be performed if the source and destination
@@ -2902,6 +2904,7 @@ The provenance event types are:
 |REPLAY                  |Indicates a provenance event for replaying a FlowFile
 |ROUTE                   |Indicates that a FlowFile was routed to a specified relationship and provides information about why the FlowFile was routed to this relationship
 |SEND                    |Indicates a provenance event for sending data to an external process
+|UPLOAD                  |Indicates a provenance event for uploading external data to an external system
 |UNKNOWN                 |Indicates that the type of provenance event is unknown because the user who is attempting to access the event is not authorized to know the type
 |======================
 

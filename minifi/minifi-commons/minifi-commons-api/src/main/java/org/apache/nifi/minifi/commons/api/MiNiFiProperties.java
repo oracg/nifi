@@ -63,7 +63,7 @@ public enum MiNiFiProperties {
     NIFI_MINIFI_SECURITY_SSL_PROTOCOL("nifi.minifi.security.ssl.protocol", null, false, false, VALID),
     NIFI_MINIFI_FLOW_USE_PARENT_SSL("nifi.minifi.flow.use.parent.ssl", null, false, true, VALID),
     NIFI_MINIFI_SENSITIVE_PROPS_KEY("nifi.minifi.sensitive.props.key", null, true, false, VALID),
-    NIFI_MINIFI_SENSITIVE_PROPS_ALGORITHM("nifi.minifi.sensitive.props.algorithm", null, true, false, VALID),
+    NIFI_MINIFI_SENSITIVE_PROPS_ALGORITHM("nifi.minifi.sensitive.props.algorithm", null, false, false, VALID),
     C2_ENABLE("c2.enable", "false", false, true, BOOLEAN_VALIDATOR),
     C2_AGENT_HEARTBEAT_PERIOD("c2.agent.heartbeat.period", "1000", false, true, LONG_VALIDATOR),
     C2_AGENT_CLASS("c2.agent.class", "", false, true, VALID),
@@ -81,9 +81,10 @@ public enum MiNiFiProperties {
     C2_KEEP_ALIVE_DURATION("c2.rest.keepAliveDuration", "5 min", false, true, TIME_PERIOD_VALIDATOR),
     C2_REST_HTTP_HEADERS("c2.rest.http.headers", "Accept:application/json", false, true, VALID),
     C2_CONFIG_DIRECTORY("c2.config.directory", "./conf", false, true, VALID),
-    C2_RUNTIME_MANIFEST_IDENTIFIER("c2.runtime.manifest.identifier", "", false, true, VALID),
-    C2_RUNTIME_TYPE("c2.runtime.type", "", false, true, VALID),
+    C2_RUNTIME_MANIFEST_IDENTIFIER("c2.runtime.manifest.identifier", "minifi", false, true, VALID),
+    C2_RUNTIME_TYPE("c2.runtime.type", "minifi-java", false, true, VALID),
     C2_ASSET_DIRECTORY("c2.asset.directory", "./asset", false, true, VALID),
+    C2_ASSET_REPOSITORY_DIRECTORY("c2.asset.repository.directory", "./asset/repository", false, false, VALID),
     C2_SECURITY_TRUSTSTORE_LOCATION("c2.security.truststore.location", "", false, false, VALID),
     C2_SECURITY_TRUSTSTORE_PASSWORD("c2.security.truststore.password", "", true, false, VALID),
     C2_SECURITY_TRUSTSTORE_TYPE("c2.security.truststore.type", "JKS", false, false, VALID),
@@ -91,6 +92,9 @@ public enum MiNiFiProperties {
     C2_SECURITY_KEYSTORE_PASSWORD("c2.security.keystore.password", "", true, false, VALID),
     C2_SECURITY_KEYSTORE_TYPE("c2.security.keystore.type", "JKS", false, false, VALID),
     C2_REQUEST_COMPRESSION("c2.request.compression", "none", false, true, VALID),
+    C2_BOOTSTRAP_ACKNOWLEDGE_TIMEOUT("c2.bootstrap.acknowledge.timeout", "15 sec", false, true, VALID),
+    C2_FLOW_INFO_PROCESSOR_BULLETIN_LIMIT("c2.flow.info.processor.bulletin.limit", "1000", false, true, NON_NEGATIVE_INTEGER_VALIDATOR ),
+    C2_FLOW_INFO_PROCESSOR_STATUS_ENABLED("c2.flow.info.processor.status.enabled", "true", false, true, BOOLEAN_VALIDATOR),
     NIFI_MINIFI_NOTIFIER_INGESTORS("nifi.minifi.notifier.ingestors", null, false, true, VALID),
     NIFI_MINIFI_NOTIFIER_INGESTORS_FILE_CONFIG_PATH("nifi.minifi.notifier.ingestors.file.config.path", null, false, true, VALID),
     NIFI_MINIFI_NOTIFIER_INGESTORS_FILE_POLLING_PERIOD_SECONDS("nifi.minifi.notifier.ingestors.file.polling.period.seconds", null, false, true, NON_NEGATIVE_INTEGER_VALIDATOR),
@@ -136,7 +140,7 @@ public enum MiNiFiProperties {
     }
 
     public static LinkedHashMap<String, MiNiFiProperties> sortedPropertiesByKey() {
-        return Arrays.stream(MiNiFiProperties.values())
+        return Arrays.stream(values())
             .sorted()
             .collect(Collectors.toMap(MiNiFiProperties::getKey, Function.identity(), (x, y) -> y, LinkedHashMap::new));
     }

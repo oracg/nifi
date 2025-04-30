@@ -24,7 +24,7 @@ import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -68,7 +68,7 @@ public class EventService implements DisposableBean {
                     }
 
                     // event was available so notify each provider, contain errors per-provider
-                    for(final EventHookProvider provider : eventHookProviders) {
+                    for (final EventHookProvider provider : eventHookProviders) {
                         try {
                             if (event.getEventType() == null
                                     || (event.getEventType() != null && provider.shouldHandle(event.getEventType()))) {
@@ -108,7 +108,7 @@ public class EventService implements DisposableBean {
                 LOGGER.error("Unable to queue event because queue is full");
             }
         } catch (IllegalStateException e) {
-            LOGGER.error("Invalid event due to: " + e.getMessage(), e);
+            LOGGER.error("Invalid event", e);
         }
     }
 

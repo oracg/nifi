@@ -26,13 +26,14 @@ import org.apache.nifi.registry.web.service.ServiceFacade;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.CacheControl;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriBuilderException;
-import javax.ws.rs.core.UriInfo;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.CacheControl;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriBuilderException;
+import jakarta.ws.rs.core.UriInfo;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Objects;
@@ -76,7 +77,7 @@ public class ApplicationResource {
         try {
             eventService.publish(event);
         } catch (Throwable t) {
-            logger.error("Unable to publish event: " + t.getMessage(), t);
+            logger.error("Unable to publish event", t);
         }
     }
 
@@ -116,7 +117,7 @@ public class ApplicationResource {
                     try {
                         uriPort = Integer.parseInt(port);
                     } catch (final NumberFormatException nfe) {
-                        logger.warn(String.format("Unable to parse proxy port HTTP header '%s'. Using port from request URI '%s'.", port, uriPort));
+                        logger.warn("Unable to parse proxy port HTTP header '{}'. Using port from request URI '{}'.", port, uriPort);
                     }
                 }
             }
@@ -180,7 +181,7 @@ public class ApplicationResource {
     /**
      * Generates a 201 Created response with the specified content.
      *
-     * @param uri    The URI
+     * @param uri The URI
      * @param entity entity
      * @return The response to be built
      */

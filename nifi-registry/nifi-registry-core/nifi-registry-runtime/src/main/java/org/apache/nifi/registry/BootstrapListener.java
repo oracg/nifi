@@ -39,7 +39,6 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
@@ -80,7 +79,7 @@ public class BootstrapListener {
         listenThread.start();
 
         logger.debug("Notifying Bootstrap that local port is {}", localPort);
-        sendCommand("PORT", new String[] { String.valueOf(localPort), secretKey});
+        sendCommand("PORT", new String[] {String.valueOf(localPort), secretKey});
     }
 
     public void stop() {
@@ -91,7 +90,7 @@ public class BootstrapListener {
 
     public void sendStartedStatus(boolean status) throws IOException {
         logger.debug("Notifying Bootstrap that the status of starting NiFi Registry is {}", status);
-        sendCommand("STARTED", new String[]{ String.valueOf(status) });
+        sendCommand("STARTED", new String[]{String.valueOf(status)});
     }
 
     private void sendCommand(final String command, final String[] args) throws IOException {
@@ -107,7 +106,7 @@ public class BootstrapListener {
             commandBuilder.append("\n");
 
             final String commandWithArgs = commandBuilder.toString();
-            logger.debug("Sending command to Bootstrap: " + commandWithArgs);
+            logger.debug("Sending command to Bootstrap: {}", commandWithArgs);
 
             final OutputStream out = socket.getOutputStream();
             out.write((commandWithArgs).getBytes(StandardCharsets.UTF_8));
@@ -142,7 +141,7 @@ public class BootstrapListener {
 
             try {
                 serverSocket.close();
-            } catch (final IOException ioe) {
+            } catch (final IOException ignored) {
                 // nothing to really do here. we could log this, but it would just become
                 // confusing in the logs, as we're shutting down and there's no real benefit
             }
@@ -173,42 +172,39 @@ public class BootstrapListener {
                     logger.debug("Received connection from Bootstrap");
                     socket.setSoTimeout(5000);
 
-                    executor.submit(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                final BootstrapRequest request = readRequest(socket.getInputStream());
-                                final BootstrapRequest.RequestType requestType = request.getRequestType();
+                    executor.submit(() -> {
+                        try {
+                            final BootstrapRequest request = readRequest(socket.getInputStream());
+                            final BootstrapRequest.RequestType requestType = request.getRequestType();
 
-                                switch (requestType) {
-                                    case PING:
-                                        logger.debug("Received PING request from Bootstrap; responding");
-                                        echoPing(socket.getOutputStream());
-                                        logger.debug("Responded to PING request from Bootstrap");
-                                        break;
-                                    case SHUTDOWN:
-                                        logger.info("Received SHUTDOWN request from Bootstrap");
-                                        echoShutdown(socket.getOutputStream());
-                                        nifi.shutdownHook();
-                                        return;
-                                    case DUMP:
-                                        logger.info("Received DUMP request from Bootstrap");
-                                        writeDump(socket.getOutputStream());
-                                        break;
-                                }
-                            } catch (final Throwable t) {
-                                logger.error("Failed to process request from Bootstrap due to " + t.toString(), t);
-                            } finally {
-                                try {
-                                    socket.close();
-                                } catch (final IOException ioe) {
-                                    logger.warn("Failed to close socket to Bootstrap due to {}", ioe.toString());
-                                }
+                            switch (requestType) {
+                                case PING:
+                                    logger.debug("Received PING request from Bootstrap; responding");
+                                    echoPing(socket.getOutputStream());
+                                    logger.debug("Responded to PING request from Bootstrap");
+                                    break;
+                                case SHUTDOWN:
+                                    logger.info("Received SHUTDOWN request from Bootstrap");
+                                    echoShutdown(socket.getOutputStream());
+                                    nifi.shutdownHook();
+                                    return;
+                                case DUMP:
+                                    logger.info("Received DUMP request from Bootstrap");
+                                    writeDump(socket.getOutputStream());
+                                    break;
+                            }
+                        } catch (final Throwable t) {
+                            logger.error("Failed to process request from Bootstrap", t);
+                        } finally {
+                            try {
+                                socket.close();
+                            } catch (final IOException ioe) {
+                                logger.warn("Failed to close socket to Bootstrap", ioe);
                             }
                         }
                     });
                 } catch (final Throwable t) {
-                    logger.error("Failed to process request from Bootstrap due to " + t.toString(), t);
+                    logger.error("Failed to process request from Bootstrap", t);
                 }
             }
         }
@@ -226,12 +222,7 @@ public class BootstrapListener {
         for (final ThreadInfo info : infos) {
             sortedInfos.add(info);
         }
-        Collections.sort(sortedInfos, new Comparator<ThreadInfo>() {
-            @Override
-            public int compare(ThreadInfo o1, ThreadInfo o2) {
-                return o1.getThreadName().toLowerCase().compareTo(o2.getThreadName().toLowerCase());
-            }
-        });
+        sortedInfos.sort(Comparator.comparing(o -> o.getThreadName().toLowerCase()));
 
         final StringBuilder sb = new StringBuilder();
         for (final ThreadInfo info : sortedInfos) {
@@ -368,11 +359,11 @@ public class BootstrapListener {
 
     private static class BootstrapRequest {
 
-        public static enum RequestType {
+        public enum RequestType {
 
             SHUTDOWN,
             DUMP,
-            PING;
+            PING
         }
 
         private final RequestType requestType;

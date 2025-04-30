@@ -21,6 +21,8 @@ import org.apache.nifi.parameter.ParameterDescriptor;
 import org.apache.nifi.parameter.ParameterLookup;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,6 +40,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class TestStandardPreparedQuery {
+
+    private static final Logger logger = LoggerFactory.getLogger(TestStandardPreparedQuery.class);
 
     @Test
     public void testSimpleReference() {
@@ -69,7 +73,7 @@ public class TestStandardPreparedQuery {
             assertEquals("world", prepared.evaluateExpressions(new StandardEvaluationContext(attrs), null));
         }
         final long nanos = System.nanoTime() - start;
-        System.out.println(TimeUnit.NANOSECONDS.toMillis(nanos));
+        logger.info("{}", TimeUnit.NANOSECONDS.toMillis(nanos));
     }
 
     @Test
@@ -83,8 +87,7 @@ public class TestStandardPreparedQuery {
             assertEquals("world", Query.evaluateExpressions("${xx}", attrs, ParameterLookup.EMPTY));
         }
         final long nanos = System.nanoTime() - start;
-        System.out.println(TimeUnit.NANOSECONDS.toMillis(nanos));
-
+        logger.info("{}", TimeUnit.NANOSECONDS.toMillis(nanos));
     }
 
     @Test
@@ -246,8 +249,8 @@ public class TestStandardPreparedQuery {
     @Test
     public void testSensitiveParameter() {
         final Map<String, Parameter> parameters = new HashMap<>();
-        parameters.put("param", new Parameter(new ParameterDescriptor.Builder().name("param").build(), "value"));
-        parameters.put("sensi", new Parameter(new ParameterDescriptor.Builder().name("sensi").sensitive(true).build(), "secret"));
+        parameters.put("param", new Parameter.Builder().name("param").value("value").build());
+        parameters.put("sensi", new Parameter.Builder().name("sensi").sensitive(true).value("secret").build());
 
         final ParameterLookup parameterLookup = new ParameterLookup() {
             @Override
@@ -283,7 +286,7 @@ public class TestStandardPreparedQuery {
 
         final ParameterLookup parameterLookup = mock(ParameterLookup.class);
         final ParameterDescriptor parameterDescriptor = new ParameterDescriptor.Builder().name(parameterName).sensitive(true).build();
-        final Parameter parameter = new Parameter(parameterDescriptor, parameterValue);
+        final Parameter parameter = new Parameter.Builder().descriptor(parameterDescriptor).value(parameterValue).build();
         when(parameterLookup.getParameter(eq(parameterName))).thenReturn(Optional.of(parameter));
         when(parameterLookup.isEmpty()).thenReturn(false);
 

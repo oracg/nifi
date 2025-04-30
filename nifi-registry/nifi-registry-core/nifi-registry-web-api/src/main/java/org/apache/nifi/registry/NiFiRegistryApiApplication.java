@@ -25,7 +25,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration;
-import org.springframework.boot.autoconfigure.solr.SolrAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.logging.LoggingSystem;
@@ -47,15 +46,13 @@ import java.util.Properties;
  */
 @EnableAutoConfiguration(
         exclude = {
-                ElasticsearchRestClientAutoConfiguration.class,
-                SolrAutoConfiguration.class
+                ElasticsearchRestClientAutoConfiguration.class
         }
 )
 @SpringBootApplication
 public class NiFiRegistryApiApplication extends SpringBootServletInitializer {
 
     public static final String NIFI_REGISTRY_PROPERTIES_ATTRIBUTE = "nifi-registry.properties";
-    public static final String NIFI_REGISTRY_MASTER_KEY_ATTRIBUTE = "nifi-registry.key";
 
     static {
         // Disable Spring Logging abstraction for Spring Boot 2 and SLF4J 2

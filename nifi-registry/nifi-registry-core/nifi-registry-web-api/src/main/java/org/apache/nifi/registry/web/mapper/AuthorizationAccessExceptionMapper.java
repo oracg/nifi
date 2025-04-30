@@ -21,9 +21,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * Maps authorization access exceptions into client responses.
@@ -37,7 +37,7 @@ public class AuthorizationAccessExceptionMapper implements ExceptionMapper<Autho
     @Override
     public Response toResponse(AuthorizationAccessException e) {
         // log the error
-        logger.error(String.format("%s. Returning %s response.", e, Response.Status.INTERNAL_SERVER_ERROR), e);
+        logger.error("{}. Returning {} response.", e, Response.Status.INTERNAL_SERVER_ERROR, e);
 
         // generate the response
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity(e.getMessage()).type("text/plain").build();

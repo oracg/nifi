@@ -24,11 +24,11 @@ import org.apache.nifi.toolkit.cli.api.Context;
 import org.apache.nifi.toolkit.cli.api.Session;
 import org.apache.nifi.toolkit.cli.impl.client.NiFiClientFactory;
 import org.apache.nifi.toolkit.cli.impl.client.NiFiRegistryClientFactory;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClient;
 import org.apache.nifi.toolkit.cli.impl.command.CommandFactory;
 import org.apache.nifi.toolkit.cli.impl.command.CommandProcessor;
 import org.apache.nifi.toolkit.cli.impl.context.StandardContext;
 import org.apache.nifi.toolkit.cli.impl.session.InMemorySession;
+import org.apache.nifi.toolkit.client.NiFiClient;
 
 import java.util.Map;
 
@@ -49,8 +49,8 @@ public class NiFiCLIMainRunner {
                 .nifiRegistryClientFactory(nifiRegClientFactory)
                 .build();
 
-        final Map<String,Command> commands = CommandFactory.createTopLevelCommands(context);
-        final Map<String,CommandGroup> commandGroups = CommandFactory.createCommandGroups(context);
+        final Map<String, Command> commands = CommandFactory.createTopLevelCommands(context);
+        final Map<String, CommandGroup> commandGroups = CommandFactory.createCommandGroups(context);
 
         final CommandProcessor processor = new CommandProcessor(commands, commandGroups, context);
         processor.process(cmdArgs);

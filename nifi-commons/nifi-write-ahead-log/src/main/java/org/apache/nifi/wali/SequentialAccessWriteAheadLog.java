@@ -17,12 +17,17 @@
 
 package org.apache.nifi.wali;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.wali.SerDeFactory;
+import org.wali.SyncListener;
+import org.wali.WriteAheadRepository;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,11 +37,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.regex.Pattern;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.wali.SerDeFactory;
-import org.wali.SyncListener;
-import org.wali.WriteAheadRepository;
 
 /**
  * <p>
@@ -166,14 +166,11 @@ public class SequentialAccessWriteAheadLog<T> implements WriteAheadRepository<T>
         }
 
         final List<File> orderedJournalFiles = Arrays.asList(journalFiles);
-        Collections.sort(orderedJournalFiles, new Comparator<File>() {
-            @Override
-            public int compare(final File o1, final File o2) {
-                final long transactionId1 = getMinTransactionId(o1);
-                final long transactionId2 = getMinTransactionId(o2);
+        orderedJournalFiles.sort((o1, o2) -> {
+            final long transactionId1 = getMinTransactionId(o1);
+            final long transactionId2 = getMinTransactionId(o2);
 
-                return Long.compare(transactionId1, transactionId2);
-            }
+            return Long.compare(transactionId1, transactionId2);
         });
 
         final long snapshotTransactionId = snapshotRecovery.getMaxTransactionId();
@@ -265,6 +262,7 @@ public class SequentialAccessWriteAheadLog<T> implements WriteAheadRepository<T>
                 final JournalSummary journalSummary = journal.getSummary();
                 if (journalSummary.getTransactionCount() == 0 && journal.isHealthy()) {
                     logger.debug("Will not checkpoint Write-Ahead Log because no updates have occurred since last checkpoint");
+                    syncListener.onGlobalSync();
                     return snapshot.getRecordCount();
                 }
 

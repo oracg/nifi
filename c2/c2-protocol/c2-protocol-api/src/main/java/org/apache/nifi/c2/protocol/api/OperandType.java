@@ -28,7 +28,9 @@ public enum OperandType {
     MANIFEST,
     REPOSITORY,
     PROPERTIES,
-    ASSET;
+    ASSET,
+    RESOURCE,
+    FLOW;
 
     public static Optional<OperandType> fromString(String value) {
         return Arrays.stream(values())

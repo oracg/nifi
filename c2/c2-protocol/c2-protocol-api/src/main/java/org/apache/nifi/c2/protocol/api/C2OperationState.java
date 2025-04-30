@@ -17,8 +17,8 @@
 
 package org.apache.nifi.c2.protocol.api;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -33,17 +33,25 @@ import java.util.Objects;
  * some insight, but a pre-condition and post-condition failure may better indicate how to arrive at operational
  * success.
  */
-@ApiModel
 public class C2OperationState implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    @ApiModelProperty(value = "State of the operation performed", required = true, example = "FULLY_APPLIED")
+    @Schema(description = "State of the operation performed", example = "FULLY_APPLIED")
     private OperationState state;
 
-    @ApiModelProperty(
-        value = "Additional details about the state",
-        example = "Operation failed due to missing processor(s)")
+    @Schema(description = "Additional details about the state")
     private String details;
+
+    @Schema(description = "Additional details about the cause of the failure")
+    private FailureCause failureCause;
+
+    public FailureCause getFailureCause() {
+        return failureCause;
+    }
+
+    public void setFailureCause(FailureCause failureCause) {
+        this.failureCause = failureCause;
+    }
 
     public String getDetails() {
         return details;
@@ -79,12 +87,12 @@ public class C2OperationState implements Serializable {
             return false;
         }
         C2OperationState that = (C2OperationState) o;
-        return state == that.state && Objects.equals(details, that.details);
+        return state == that.state && Objects.equals(details, that.details) && Objects.equals(failureCause, that.failureCause);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(state, details);
+        return Objects.hash(state, details, failureCause);
     }
 
     @Override
@@ -92,6 +100,7 @@ public class C2OperationState implements Serializable {
         return "C2OperationState{" +
             "state=" + state +
             ", details='" + details + '\'' +
+            ", failureCause='" + failureCause + '\'' +
             '}';
     }
 

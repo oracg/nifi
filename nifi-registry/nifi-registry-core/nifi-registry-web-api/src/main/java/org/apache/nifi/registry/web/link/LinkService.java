@@ -33,8 +33,8 @@ import org.apache.nifi.registry.link.LinkableDocs;
 import org.apache.nifi.registry.link.LinkableEntity;
 import org.springframework.stereotype.Service;
 
-import javax.ws.rs.core.Link;
-import javax.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.Link;
+import jakarta.ws.rs.core.UriBuilder;
 import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
@@ -270,9 +270,9 @@ public class LinkService {
     });
 
 
-    private static final Map<Class,LinkBuilder> LINK_BUILDERS;
+    private static final Map<Class, LinkBuilder> LINK_BUILDERS;
     static {
-        final Map<Class,LinkBuilder> builderMap = new HashMap<>();
+        final Map<Class, LinkBuilder> builderMap = new HashMap<>();
         // -- buckets
         builderMap.put(Bucket.class, BUCKET_LINK_BUILDER);
 
@@ -296,9 +296,9 @@ public class LinkService {
         LINK_BUILDERS = Collections.unmodifiableMap(builderMap);
     }
 
-    private static final Map<Class,LinkBuilder> DOCS_LINK_BUILDERS;
+    private static final Map<Class, LinkBuilder> DOCS_LINK_BUILDERS;
     static {
-        final Map<Class,LinkBuilder> builderMap = new HashMap<>();
+        final Map<Class, LinkBuilder> builderMap = new HashMap<>();
         builderMap.put(ExtensionMetadata.class, EXTENSION_METADATA_DOCS_LINK_BUILDER);
         builderMap.put(ExtensionRepoExtensionMetadata.class, EXTENSION_REPO_EXTENSION_METADATA_DOCS_LINK_BUILDER);
         DOCS_LINK_BUILDERS = Collections.unmodifiableMap(builderMap);

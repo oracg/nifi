@@ -23,14 +23,15 @@ import org.skyscreamer.jsonassert.JSONAssert;
 import org.springframework.test.annotation.IfProfileValue;
 import org.springframework.test.context.jdbc.Sql;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
 import static org.apache.nifi.registry.web.api.IntegrationTestUtils.assertBucketsEqual;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -56,7 +57,7 @@ public class BucketsIT extends UnsecuredITBase {
     // NOTE: The tests that seed the DB directly from SQL end up with different results for the timestamp depending on
     // which DB is used, so for now these types of tests only run against H2.
     @Test
-    @IfProfileValue(name="current.database.is.h2", value="true")
+    @IfProfileValue(name = "current.database.is.h2", value = "true")
     @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = {"classpath:db/clearDB.sql", "classpath:db/BucketsIT.sql"})
     public void testGetBuckets() throws Exception {
 
@@ -93,7 +94,7 @@ public class BucketsIT extends UnsecuredITBase {
         // Then: the pre-populated list of buckets is returned
 
         JSONAssert.assertEquals(expected, bucketsJson, false);
-        assertTrue(!bucketsJson.contains("null")); // JSON serialization from the server should not include null fields, such as "versionedFlows": null
+        assertFalse(bucketsJson.contains("null")); // JSON serialization from the server should not include null fields, such as "versionedFlows": null
     }
 
     @Test

@@ -58,7 +58,7 @@ public class DBFlowStorageIT extends IntegrationTestBase {
     @BeforeEach
     public void setup() throws IOException {
         final String baseUrl = createBaseURL();
-        LOGGER.info("Using base url = " + baseUrl);
+        LOGGER.info("Using base url = {}", baseUrl);
 
         final NiFiRegistryClientConfig clientConfig = new NiFiRegistryClientConfig.Builder()
                 .baseUrl(baseUrl)
@@ -157,7 +157,7 @@ public class DBFlowStorageIT extends IntegrationTestBase {
         try {
             client.getFlowSnapshotClient().get(createdF1.getIdentifier(), 1);
             fail("Should have thrown exception");
-        } catch (NiFiRegistryException nre) {
+        } catch (NiFiRegistryException ignored) {
         }
 
         // Versions of f2 should still exist...

@@ -10,6 +10,7 @@ nb-configuration.xml
 
 # Intellij
 .idea/
+.run/
 *.iml
 *.iws
 *.ipr
@@ -18,3 +19,4 @@ nb-configuration.xml
 .vscode/
 .java-version
 /nifi-nar-bundles/nifi-py4j-bundle/nifi-python-extension-api/src/main/python/dist/
+__pycache__

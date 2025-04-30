@@ -17,7 +17,10 @@
 
 package org.apache.nifi.c2.client.api;
 
+import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.Optional;
+import java.util.function.Function;
 import org.apache.nifi.c2.protocol.api.C2Heartbeat;
 import org.apache.nifi.c2.protocol.api.C2HeartbeatResponse;
 import org.apache.nifi.c2.protocol.api.C2OperationAck;
@@ -59,6 +62,16 @@ public interface C2Client {
     Optional<byte[]> retrieveUpdateAssetContent(String callbackUrl);
 
     /**
+     * Retrieves a resource from the C2 server. The resource is not materialized into a byte[],
+     * instead a consumer is provided to stream the data to a specified location
+     *
+     * @param callbackUrl      url where the resource should be downloaded from
+     * @param resourceConsumer consumer to handle the incoming data as a stream
+     * @return the path of the downloaded resource. Will be empty if no content can be downloaded or an error occurred
+     */
+    Optional<Path> retrieveResourceItem(String callbackUrl, Function<InputStream, Optional<Path>> resourceConsumer);
+
+    /**
      * Uploads a binary bundle to C2 server
      *
      * @param callbackUrl url where the content should be uploaded to
@@ -72,7 +85,7 @@ public interface C2Client {
      *
      * @param absoluteUrl absolute url sent by C2 server
      * @param relativeUrl relative url sent by C2 server
-     * @return an optional with content of finalised callback url
+     * @return finalised callback url
      */
-    Optional<String> getCallbackUrl(String absoluteUrl, String relativeUrl);
+    String getCallbackUrl(String absoluteUrl, String relativeUrl);
 }

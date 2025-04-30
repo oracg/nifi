@@ -17,7 +17,7 @@
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-commons</artifactId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.4.0-SNAPSHOT</version>
     </parent>
     <artifactId>nifi-security-utils-api</artifactId>
     <description>
@@ -25,8 +25,10 @@
         across the project. This module is included in a number of api modules and must
         have no external dependencies.
     </description>
-    <!--
-    This module cannot have any external dependencies as it is referred to by many *-api modules
-      -->
+    <dependencies>
+        <!--
+        This module cannot have any external compile time dependencies as it is referred to by many *-api modules
+          -->
+    </dependencies>
 </project>
 

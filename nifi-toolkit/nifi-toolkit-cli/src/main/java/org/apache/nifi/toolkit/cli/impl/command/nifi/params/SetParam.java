@@ -20,11 +20,11 @@ import org.apache.commons.cli.MissingOptionException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.toolkit.cli.api.CommandException;
 import org.apache.nifi.toolkit.cli.api.Context;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClient;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.ParamContextClient;
 import org.apache.nifi.toolkit.cli.impl.command.CommandOption;
 import org.apache.nifi.toolkit.cli.impl.result.VoidResult;
+import org.apache.nifi.toolkit.client.NiFiClient;
+import org.apache.nifi.toolkit.client.NiFiClientException;
+import org.apache.nifi.toolkit.client.ParamContextClient;
 import org.apache.nifi.web.api.dto.ParameterContextDTO;
 import org.apache.nifi.web.api.dto.ParameterDTO;
 import org.apache.nifi.web.api.entity.ParameterContextEntity;
@@ -32,7 +32,6 @@ import org.apache.nifi.web.api.entity.ParameterContextUpdateRequestEntity;
 import org.apache.nifi.web.api.entity.ParameterEntity;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
@@ -82,12 +81,13 @@ public class SetParam extends AbstractUpdateParamContextCommand<VoidResult> {
         final ParameterContextDTO existingParameterContextDTO = existingParameterContextEntity.getComponent();
 
         // Determine if this is an existing param or a new one...
-        final Optional<ParameterDTO> existingParam = existingParameterContextDTO.getParameters().stream()
-                .map(p -> p.getParameter())
+        final Optional<ParameterDTO> existingParam = existingParameterContextDTO.getParameters()
+                .stream()
+                .map(ParameterEntity::getParameter)
                 .filter(p -> p.getName().equals(paramName))
                 .findFirst();
 
-        if (!existingParam.isPresent() && paramValue == null) {
+        if (existingParam.isEmpty() && paramValue == null) {
             throw new IllegalArgumentException("A parameter value is required when creating a new parameter");
         }
 
@@ -95,8 +95,8 @@ public class SetParam extends AbstractUpdateParamContextCommand<VoidResult> {
             throw new IllegalArgumentException(String.format("Parameter value supplied for parameter [%s] is the same as its current value", paramName));
         }
 
-        // Construct the objects for the update...
-        final ParameterDTO parameterDTO = existingParam.isPresent() ? existingParam.get() : new ParameterDTO();
+        // Create/update the parameter object
+        final ParameterDTO parameterDTO = existingParam.orElseGet(ParameterDTO::new);
         parameterDTO.setName(paramName);
 
         if (paramValue != null) {
@@ -112,21 +112,10 @@ public class SetParam extends AbstractUpdateParamContextCommand<VoidResult> {
         }
         parameterDTO.setProvided(false);
 
-        final ParameterEntity parameterEntity = new ParameterEntity();
-        parameterEntity.setParameter(parameterDTO);
-
-        final ParameterContextDTO parameterContextDTO = new ParameterContextDTO();
-        parameterContextDTO.setId(existingParameterContextEntity.getId());
-        parameterContextDTO.setParameters(Collections.singleton(parameterEntity));
-
-        parameterContextDTO.setInheritedParameterContexts(existingParameterContextDTO.getInheritedParameterContexts());
-
-        final ParameterContextEntity updatedParameterContextEntity = new ParameterContextEntity();
-        updatedParameterContextEntity.setId(paramContextId);
-        updatedParameterContextEntity.setComponent(parameterContextDTO);
-        updatedParameterContextEntity.setRevision(existingParameterContextEntity.getRevision());
-
         // Submit the update request...
+        final ParameterContextEntity updatedParameterContextEntity = createContextEntityForUpdate(paramContextId, parameterDTO,
+                existingParameterContextDTO.getInheritedParameterContexts(), existingParameterContextEntity.getRevision());
+
         final ParameterContextUpdateRequestEntity updateRequestEntity = paramContextClient.updateParamContext(updatedParameterContextEntity);
         performUpdate(paramContextClient, updatedParameterContextEntity, updateRequestEntity, updateTimeout);
 

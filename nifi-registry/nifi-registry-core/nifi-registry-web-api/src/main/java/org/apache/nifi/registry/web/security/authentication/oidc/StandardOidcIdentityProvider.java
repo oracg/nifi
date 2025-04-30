@@ -255,7 +255,7 @@ public class StandardOidcIdentityProvider implements OidcIdentityProvider {
             throw new IOException("Unable to download OpenId Connect Provider metadata from " + url + ": Status code " + httpResponse.getStatusCode());
         }
 
-        final JSONObject jsonObject = httpResponse.getContentAsJSONObject();
+        final JSONObject jsonObject = httpResponse.getBodyAsJSONObject();
         return OIDCProviderMetadata.parse(jsonObject);
     }
 
@@ -401,12 +401,15 @@ public class StandardOidcIdentityProvider implements OidcIdentityProvider {
         String identityClaim = properties.getOidcClaimIdentifyingUser();
         String identity = claimsSet.getStringClaim(identityClaim);
 
+        // Attempt to extract groups from the configured claim; default is 'groups'
+        final String groupsClaim = properties.getOidcClaimGroups();
+        final List<String> groups = claimsSet.getStringListClaim(groupsClaim);
+
         // If default identity not available, attempt secondary identity extraction
         if (StringUtils.isBlank(identity)) {
             // Provide clear message to admin that desired claim is missing and present available claims
             List<String> availableClaims = getAvailableClaims(oidcJwt.getJWTClaimsSet());
-            logger.warn("Failed to obtain the identity of the user with the claim '{}'. The available claims on " +
-                            "the OIDC response are: {}. Will attempt to obtain the identity from secondary sources",
+            logger.warn("Failed to obtain the identity of the user with the claim '{}'. The available claims on the OIDC response are: {}. Will attempt to obtain the identity from secondary sources",
                     identityClaim, availableClaims);
 
             // If the desired user claim was not "email" and "email" is present, use that
@@ -426,7 +429,7 @@ public class StandardOidcIdentityProvider implements OidcIdentityProvider {
         final String issuer = claimsSet.getIssuer().getValue();
 
         // convert into a nifi jwt for retrieval later
-        return jwtService.generateSignedToken(identity, identity, issuer, issuer, expiresIn);
+        return jwtService.generateSignedToken(identity, identity, issuer, issuer, expiresIn, groups);
     }
 
     private String retrieveIdentityFromUserInfoEndpoint(OIDCTokens oidcTokens) throws IOException {
@@ -443,7 +446,7 @@ public class StandardOidcIdentityProvider implements OidcIdentityProvider {
     }
 
     private HTTPRequest createTokenHTTPRequest(AuthorizationGrant authorizationGrant, ClientAuthentication clientAuthentication) {
-        final TokenRequest request = new TokenRequest(oidcProviderMetadata.getTokenEndpointURI(), clientAuthentication, authorizationGrant);
+        final TokenRequest request = new TokenRequest(oidcProviderMetadata.getTokenEndpointURI(), clientAuthentication, authorizationGrant, null);
         return formHTTPRequest(request);
     }
 

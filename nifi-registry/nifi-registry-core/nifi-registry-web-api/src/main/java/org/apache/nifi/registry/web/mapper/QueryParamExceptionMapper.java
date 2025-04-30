@@ -22,9 +22,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 @Component
 @Provider
@@ -34,7 +34,7 @@ public class QueryParamExceptionMapper implements ExceptionMapper<ParamException
 
     @Override
     public Response toResponse(ParamException.QueryParamException exception) {
-        logger.info(String.format("%s. Returning %s response.", exception, Response.Status.BAD_REQUEST));
+        logger.info("{}. Returning {} response.", exception, Response.Status.BAD_REQUEST);
 
         if (logger.isDebugEnabled()) {
             logger.debug(StringUtils.EMPTY, exception);

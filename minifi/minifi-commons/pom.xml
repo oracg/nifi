@@ -20,14 +20,15 @@ limitations under the License.
     <parent>
         <artifactId>minifi</artifactId>
         <groupId>org.apache.nifi.minifi</groupId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.4.0-SNAPSHOT</version>
     </parent>
     <artifactId>minifi-commons</artifactId>
     <packaging>pom</packaging>
 
     <modules>
-        <module>minifi-utils</module>
+        <module>minifi-flow-status-report</module>
         <module>minifi-commons-api</module>
         <module>minifi-commons-framework</module>
+        <module>minifi-commons-utils</module>
     </modules>
 </project>

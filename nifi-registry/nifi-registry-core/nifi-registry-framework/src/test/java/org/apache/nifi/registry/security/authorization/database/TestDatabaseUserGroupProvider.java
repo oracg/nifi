@@ -75,12 +75,12 @@ public class TestDatabaseUserGroupProvider extends DatabaseBaseTest {
      *
      * @param initialUserIdentities the initial user identities to place in the configuration context
      */
-    private void configureWithInitialUsers(final String ... initialUserIdentities) {
-        final Map<String,String> configProperties = new HashMap<>();
+    private void configureWithInitialUsers(final String... initialUserIdentities) {
+        final Map<String, String> configProperties = new HashMap<>();
 
-        for (int i=0; i < initialUserIdentities.length; i++) {
+        for (int i = 0; i < initialUserIdentities.length; i++) {
             final String initialUserIdentity = initialUserIdentities[i];
-            configProperties.put(UserGroupProviderUtils.PROP_INITIAL_USER_IDENTITY_PREFIX + (i+1), initialUserIdentity);
+            configProperties.put(UserGroupProviderUtils.PROP_INITIAL_USER_IDENTITY_PREFIX + (i + 1), initialUserIdentity);
         }
 
         final AuthorizerConfigurationContext configurationContext = mock(AuthorizerConfigurationContext.class);
@@ -98,7 +98,7 @@ public class TestDatabaseUserGroupProvider extends DatabaseBaseTest {
     private void createUser(final String userIdentifier, final String userIdentity) {
         final JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         final String sql = "INSERT INTO UGP_USER(IDENTIFIER, IDENTITY) VALUES (?, ?)";
-        final int updatedRows1 = jdbcTemplate.update(sql, new Object[] {userIdentifier, userIdentity});
+        final int updatedRows1 = jdbcTemplate.update(sql, userIdentifier, userIdentity);
         assertEquals(1, updatedRows1);
     }
 
@@ -111,7 +111,7 @@ public class TestDatabaseUserGroupProvider extends DatabaseBaseTest {
     private void createGroup(final String groupIdentifier, final String groupIdentity) {
         final JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         final String sql = "INSERT INTO UGP_GROUP(IDENTIFIER, IDENTITY) VALUES (?, ?)";
-        final int updatedRows1 = jdbcTemplate.update(sql, new Object[] {groupIdentifier, groupIdentity});
+        final int updatedRows1 = jdbcTemplate.update(sql, groupIdentifier, groupIdentity);
         assertEquals(1, updatedRows1);
     }
 
@@ -124,7 +124,7 @@ public class TestDatabaseUserGroupProvider extends DatabaseBaseTest {
     private void addUserToGroup(final String userIdentifier, final String groupIdentifier) {
         final JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         final String sql = "INSERT INTO UGP_USER_GROUP(USER_IDENTIFIER, GROUP_IDENTIFIER) VALUES (?, ?)";
-        final int updatedRows1 = jdbcTemplate.update(sql, new Object[] {userIdentifier, groupIdentifier});
+        final int updatedRows1 = jdbcTemplate.update(sql, userIdentifier, groupIdentifier);
         assertEquals(1, updatedRows1);
     }
 
@@ -145,7 +145,7 @@ public class TestDatabaseUserGroupProvider extends DatabaseBaseTest {
     @Test
     public void testOnConfiguredStillCreatesInitialUsersWhenExistingUsersAndGroups() {
         // Create a user in the DB before we call onConfigured
-        final String existingUserIdentity= "existingUser";
+        final String existingUserIdentity = "existingUser";
         final String existingUserIdentifier = UUID.randomUUID().toString();
         createUser(existingUserIdentifier, existingUserIdentity);
 
@@ -165,7 +165,7 @@ public class TestDatabaseUserGroupProvider extends DatabaseBaseTest {
     @Test
     public void testOnConfiguredWithSameUsers() {
         // Create a user in the DB before we call onConfigured
-        final String existingUserIdentity= "existingUser";
+        final String existingUserIdentity = "existingUser";
         final String existingUserIdentifier = UUID.randomUUID().toString();
         createUser(existingUserIdentifier, existingUserIdentity);
 
@@ -187,7 +187,7 @@ public class TestDatabaseUserGroupProvider extends DatabaseBaseTest {
         properties = new NiFiRegistryProperties(props);
 
         identityMapper = new DefaultIdentityMapper(properties);
-        ((DatabaseUserGroupProvider)userGroupProvider).setIdentityMapper(identityMapper);
+        ((DatabaseUserGroupProvider) userGroupProvider).setIdentityMapper(identityMapper);
 
         // Call onConfigured with two initial users - one kerberos principal, one DN
         final String userIdentity1 = "user1@NIFI.COM";

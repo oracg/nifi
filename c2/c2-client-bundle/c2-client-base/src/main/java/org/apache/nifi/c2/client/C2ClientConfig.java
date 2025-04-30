@@ -57,6 +57,10 @@ public class C2ClientConfig {
     private final long keepAliveDuration;
     private final String c2RequestCompression;
     private final String c2AssetDirectory;
+    private final String c2AssetRepositoryDirectory;
+    private final long bootstrapAcknowledgeTimeout;
+    private final int c2FlowInfoProcessorBulletinLimit;
+    private final boolean c2FlowInfoProcessorStatusEnabled;
 
     private C2ClientConfig(final Builder builder) {
         this.c2Url = builder.c2Url;
@@ -86,6 +90,10 @@ public class C2ClientConfig {
         this.keepAliveDuration = builder.keepAliveDuration;
         this.c2RequestCompression = builder.c2RequestCompression;
         this.c2AssetDirectory = builder.c2AssetDirectory;
+        this.c2AssetRepositoryDirectory = builder.c2AssetRepositoryDirectory;
+        this.bootstrapAcknowledgeTimeout = builder.bootstrapAcknowledgeTimeout;
+        this.c2FlowInfoProcessorBulletinLimit = builder.c2FlowInfoProcessorBulletinLimit;
+        this.c2FlowInfoProcessorStatusEnabled = builder.c2FlowInfoProcessorStatusEnabled;
     }
 
     public String getC2Url() {
@@ -188,6 +196,10 @@ public class C2ClientConfig {
         return c2AssetDirectory;
     }
 
+    public String getC2AssetRepositoryDirectory() {
+        return c2AssetRepositoryDirectory;
+    }
+
     public int getMaxIdleConnections() {
         return maxIdleConnections;
     }
@@ -196,6 +208,17 @@ public class C2ClientConfig {
         return keepAliveDuration;
     }
 
+    public long getBootstrapAcknowledgeTimeout() {
+        return bootstrapAcknowledgeTimeout;
+    }
+
+    public int getC2FlowInfoProcessorBulletinLimit() {
+        return c2FlowInfoProcessorBulletinLimit;
+    }
+
+    public boolean isC2FlowInfoProcessorStatusEnabled() {
+        return c2FlowInfoProcessorStatusEnabled;
+    }
     /**
      * Builder for client configuration.
      */
@@ -231,6 +254,10 @@ public class C2ClientConfig {
         private long keepAliveDuration;
         private String c2RequestCompression;
         private String c2AssetDirectory;
+        private String c2AssetRepositoryDirectory;
+        private long bootstrapAcknowledgeTimeout;
+        private int c2FlowInfoProcessorBulletinLimit;
+        private boolean c2FlowInfoProcessorStatusEnabled;
 
         public Builder c2Url(String c2Url) {
             this.c2Url = c2Url;
@@ -374,6 +401,26 @@ public class C2ClientConfig {
 
         public Builder c2AssetDirectory(String c2AssetDirectory) {
             this.c2AssetDirectory = c2AssetDirectory;
+            return this;
+        }
+
+        public Builder c2AssetRepositoryDirectory(String c2AssetRepositoryDirectory) {
+            this.c2AssetRepositoryDirectory = c2AssetRepositoryDirectory;
+            return this;
+        }
+
+        public Builder bootstrapAcknowledgeTimeout(long bootstrapAcknowledgeTimeout) {
+            this.bootstrapAcknowledgeTimeout = bootstrapAcknowledgeTimeout;
+            return this;
+        }
+
+        public Builder c2FlowInfoProcessorBulletinLimit(int c2FlowInfoProcessorBulletinLimit) {
+            this.c2FlowInfoProcessorBulletinLimit = c2FlowInfoProcessorBulletinLimit;
+            return this;
+        }
+
+        public Builder c2FlowInfoProcessorStatusEnabled(boolean c2FlowInfoProcessorStatusEnabled) {
+            this.c2FlowInfoProcessorStatusEnabled = c2FlowInfoProcessorStatusEnabled;
             return this;
         }
 

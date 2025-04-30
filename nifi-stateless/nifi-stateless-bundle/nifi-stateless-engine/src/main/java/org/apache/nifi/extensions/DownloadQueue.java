@@ -88,7 +88,7 @@ public class DownloadQueue {
     @SuppressWarnings("rawtypes")
     public CompletableFuture<Void> download() {
         final CompletableFuture[] futures = new CompletableFuture[concurrentDownloads];
-        for (int i=0; i < concurrentDownloads; i++) {
+        for (int i = 0; i < concurrentDownloads; i++) {
             final CompletableFuture<Void> completableFuture = new CompletableFuture<>();
             executorService.submit(new DownloadTask(toDownload, completableFuture, allDownloads));
             futures[i] = completableFuture;
@@ -172,9 +172,9 @@ public class DownloadQueue {
                 final Manifest manifest = nar.getManifest();
 
                 final Attributes attributes = manifest.getMainAttributes();
-                final String groupId = attributes.getValue(NarManifestEntry.NAR_DEPENDENCY_GROUP.getManifestName());
-                final String narId = attributes.getValue(NarManifestEntry.NAR_DEPENDENCY_ID.getManifestName());
-                final String version = attributes.getValue(NarManifestEntry.NAR_DEPENDENCY_VERSION.getManifestName());
+                final String groupId = attributes.getValue(NarManifestEntry.NAR_DEPENDENCY_GROUP.getEntryName());
+                final String narId = attributes.getValue(NarManifestEntry.NAR_DEPENDENCY_ID.getEntryName());
+                final String version = attributes.getValue(NarManifestEntry.NAR_DEPENDENCY_VERSION.getEntryName());
 
                 if (groupId == null || narId == null || version == null) {
                     return null;

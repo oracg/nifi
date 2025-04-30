@@ -19,6 +19,7 @@ package org.apache.nifi.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
@@ -94,8 +95,8 @@ public class FlowFilePackagerV2 implements FlowFilePackager {
             writeString(entry.getKey(), out);
             writeString(entry.getValue(), out);
         }
-        writeLong(out, fileSize);//write out length of data
-        copy(in, out);//write out the actual flow file payload
+        writeLong(out, fileSize); //write out length of data
+        copy(in, out); //write out the actual flow file payload
     }
 
     private void copy(final InputStream in, final OutputStream out) throws IOException {
@@ -107,7 +108,7 @@ public class FlowFilePackagerV2 implements FlowFilePackager {
     }
 
     private void writeString(final String val, final OutputStream out) throws IOException {
-        final byte[] bytes = val.getBytes("UTF-8");
+        final byte[] bytes = val.getBytes(StandardCharsets.UTF_8);
         writeFieldLength(out, bytes.length);
         out.write(bytes);
     }

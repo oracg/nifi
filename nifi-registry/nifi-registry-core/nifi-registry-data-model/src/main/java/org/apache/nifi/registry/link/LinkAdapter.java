@@ -16,8 +16,8 @@
  */
 package org.apache.nifi.registry.link;
 
-import javax.ws.rs.core.Link;
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.ws.rs.core.Link;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import java.util.Map;
 
 /**
@@ -43,7 +43,7 @@ public class LinkAdapter extends XmlAdapter<JaxbLink, Link> {
 
         Link.Builder lb = Link.fromUri(v.getUri());
         if (v.getParams() != null) {
-            for (Map.Entry<String,String> e : v.getParams().entrySet()) {
+            for (Map.Entry<String, String> e : v.getParams().entrySet()) {
                 lb.param(e.getKey(), e.getValue());
             }
         }

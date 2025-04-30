@@ -65,15 +65,12 @@ public class TestFlowContentSerializer {
         final ByteArrayOutputStream out = new ByteArrayOutputStream();
         serializer.serializeFlowContent(flowContent, out);
 
-        //final String json = new String(out.toByteArray(), StandardCharsets.UTF_8);
-        //System.out.println(json);
-
         final ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
 
         // make sure we can read the version from the input stream and it should be the current version
         final Integer version = serializer.readDataModelVersion(in);
         assertEquals(serializer.getCurrentDataModelVersion(), version);
-        assertEquals(false, serializer.isProcessGroupVersion(version));
+        assertFalse(serializer.isProcessGroupVersion(version));
 
         // make sure we can deserialize back to FlowContent
         final FlowContent deserializedFlowContent = serializer.deserializeFlowContent(version, in);
@@ -108,7 +105,7 @@ public class TestFlowContentSerializer {
         serviceReference2.setIdentifier("2");
         serviceReference2.setName("Service 2");
 
-        final Map<String,ExternalControllerServiceReference> serviceReferences = new HashMap<>();
+        final Map<String, ExternalControllerServiceReference> serviceReferences = new HashMap<>();
         serviceReferences.put(serviceReference1.getIdentifier(), serviceReference1);
         serviceReferences.put(serviceReference2.getIdentifier(), serviceReference2);
 
@@ -139,7 +136,7 @@ public class TestFlowContentSerializer {
         assertEquals(processGroup1.getIdentifier(), deserializedProcessGroup.getIdentifier());
         assertEquals(processGroup1.getName(), deserializedProcessGroup.getName());
 
-        final Map<String,ExternalControllerServiceReference> deserializedServiceReferences = deserializedSnapshot.getExternalControllerServices();
+        final Map<String, ExternalControllerServiceReference> deserializedServiceReferences = deserializedSnapshot.getExternalControllerServices();
         assertNotNull(deserializedServiceReferences);
         assertEquals(2, deserializedServiceReferences.size());
 

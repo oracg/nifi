@@ -20,6 +20,8 @@ package org.apache.nifi.wali;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.wali.DummyRecord;
 import org.wali.DummyRecordSerde;
 import org.wali.SerDeFactory;
@@ -50,6 +52,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class TestSequentialAccessWriteAheadLog {
+
+    private static final Logger logger = LoggerFactory.getLogger(TestSequentialAccessWriteAheadLog.class);
+
     @Test
     public void testUpdateWithExternalFile(TestInfo testInfo) throws IOException {
         final DummyRecordSerde serde = new DummyRecordSerde();
@@ -327,19 +332,16 @@ public class TestSequentialAccessWriteAheadLog {
 
         for (int j = 0; j < 2; j++) {
             for (int i = 0; i < numThreads; i++) {
-                final Thread t = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        final List<DummyRecord> batch = new ArrayList<>();
-                        for (int i = 0; i < updateCountPerThread / batchSize; i++) {
-                            batch.clear();
-                            for (int j = 0; j < batchSize; j++) {
-                                final DummyRecord record = new DummyRecord(String.valueOf(i), UpdateType.CREATE);
-                                batch.add(record);
-                            }
-
-                            assertThrows(Throwable.class, () -> repo.update(batch, false));
+                final Thread t = new Thread(() -> {
+                    final List<DummyRecord> batch = new ArrayList<>();
+                    for (int i1 = 0; i1 < updateCountPerThread / batchSize; i1++) {
+                        batch.clear();
+                        for (int j1 = 0; j1 < batchSize; j1++) {
+                            final DummyRecord record = new DummyRecord(String.valueOf(i1), UpdateType.CREATE);
+                            batch.add(record);
                         }
+
+                        assertThrows(Throwable.class, () -> repo.update(batch, false));
                     }
                 });
 
@@ -369,11 +371,11 @@ public class TestSequentialAccessWriteAheadLog {
             final String bps = NumberFormat.getInstance().format(bytesPerSecond);
 
             if (j == 0) {
-                System.out.println(millis + " ms to insert " + updateCountPerThread * numThreads + " updates using " + numThreads
-                    + " threads, *as a warmup!*  " + eps + " events per second, " + bps + " bytes per second");
+                logger.info("{} ms to insert {} updates using {} threads, *as a warmup!* {} events per second, {} bytes per second",
+                        millis, updateCountPerThread * numThreads, numThreads, eps, bps);
             } else {
-                System.out.println(millis + " ms to insert " + updateCountPerThread * numThreads + " updates using " + numThreads
-                    + " threads, " + eps + " events per second, " + bps + " bytes per second");
+                logger.info("{} ms to insert {} updates using {} threads, {} events per second, {} bytes per second",
+                        millis, updateCountPerThread * numThreads, numThreads, eps, bps);
             }
         }
     }

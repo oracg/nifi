@@ -18,73 +18,79 @@
     <parent>
         <artifactId>nifi-stateless</artifactId>
         <groupId>org.apache.nifi</groupId>
-        <version>2.0.0-SNAPSHOT</version>
+        <version>2.4.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>nifi-stateless-assembly</artifactId>
     <description>An assembly for building NiFi Stateless</description>
     <packaging>pom</packaging>
-
     <dependencies>
         <!-- NiFi Stateless specific dependencies -->
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-stateless-api</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <version>2.4.0-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-stateless-bootstrap</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <version>2.4.0-SNAPSHOT</version>
         </dependency>
 
         <!-- dependencies shared with NiFi -->
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-api</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-properties</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-property-utils</artifactId>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.nifi</groupId>
+            <artifactId>nifi-nar-utils</artifactId>
+            <version>2.4.0-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-framework-api</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-server-api</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-python-framework-api</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-runtime</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-stateless-resources</artifactId>
             <classifier>resources</classifier>
-            <version>2.0.0-SNAPSHOT</version>
+            <version>2.4.0-SNAPSHOT</version>
             <scope>runtime</scope>
             <type>zip</type>
         </dependency>
 
         <!-- 3rd party dependencies in rootlib directory -->
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.jetty.toolchain</groupId>
-            <artifactId>jetty-schemas</artifactId>
-            <scope>compile</scope>
-        </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
@@ -119,14 +125,14 @@
         <!-- NAR files to include -->
         <dependency>
             <groupId>org.apache.nifi</groupId>
-            <artifactId>nifi-jetty-bundle</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <artifactId>nifi-jetty-nar</artifactId>
+            <version>2.4.0-SNAPSHOT</version>
             <type>nar</type>
         </dependency>
         <dependency>
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-stateless-nar</artifactId>
-            <version>2.0.0-SNAPSHOT</version>
+            <version>2.4.0-SNAPSHOT</version>
             <type>nar</type>
         </dependency>
 
@@ -143,7 +149,7 @@
                 <artifactId>maven-assembly-plugin</artifactId>
                 <configuration>
                     <finalName>nifi-stateless-${project.version}</finalName>
-                    <attach>false</attach>
+                    <attach>true</attach>
                 </configuration>
                 <executions>
                     <execution>

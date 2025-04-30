@@ -26,7 +26,7 @@ import org.apache.nifi.controller.service.ControllerServiceState;
 import org.apache.nifi.stream.io.StreamUtils;
 import org.apache.nifi.tests.system.NiFiInstanceFactory;
 import org.apache.nifi.tests.system.NiFiSystemIT;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
+import org.apache.nifi.toolkit.client.NiFiClientException;
 import org.apache.nifi.web.api.dto.ControllerServiceDTO;
 import org.apache.nifi.web.api.dto.PortDTO;
 import org.apache.nifi.web.api.dto.ProcessorDTO;
@@ -96,7 +96,7 @@ public class FlowSynchronizationIT extends NiFiSystemIT {
         getClientUtil().startProcessor(generate);
         waitForQueueCount(connection.getId(), getNumberOfNodes());
 
-        for (int i=0; i < 2; i++) {
+        for (int i = 0; i < 2; i++) {
             final FlowFileEntity flowFile = getClientUtil().getQueueFlowFile(connection.getId(), i);
             assertEquals("1", flowFile.getFlowFile().getAttributes().get("attr"));
         }
@@ -123,12 +123,12 @@ public class FlowSynchronizationIT extends NiFiSystemIT {
 
         waitForQueueCount(connection.getId(), 4);
 
-        for (int i=0; i < 2; i++) {
+        for (int i = 0; i < 2; i++) {
             final FlowFileEntity flowFile = getClientUtil().getQueueFlowFile(connection.getId(), i);
             assertEquals("1", flowFile.getFlowFile().getAttributes().get("attr"));
         }
 
-        for (int i=2; i < 4; i++) {
+        for (int i = 2; i < 4; i++) {
             final FlowFileEntity flowFile = getClientUtil().getQueueFlowFile(connection.getId(), i);
             assertEquals("updated", flowFile.getFlowFile().getAttributes().get("attr"));
         }
@@ -753,6 +753,46 @@ public class FlowSynchronizationIT extends NiFiSystemIT {
             final ControllerServiceEntity currentService = getNifiClient().getControllerServicesClient(DO_NOT_REPLICATE).getControllerService(controllerService.getId());
             return ControllerServiceState.DISABLED.name().equals(currentService.getComponent().getState());
         });
+    }
+
+
+    @Test
+    public void testReconnectWithRunningProcessorUnchanged() throws NiFiClientException, IOException, InterruptedException {
+        final ProcessorEntity generateFlowFile = getClientUtil().createProcessor("GenerateFlowFile");
+        final ProcessorEntity reverseContents = getClientUtil().createProcessor("ReverseContents");
+        final ProcessorEntity terminateFlowFile = getClientUtil().createProcessor("TerminateFlowFile");
+        getClientUtil().createConnection(generateFlowFile, reverseContents, "success");
+        getClientUtil().createConnection(reverseContents, terminateFlowFile, "success");
+
+        getClientUtil().waitForValidProcessor(generateFlowFile.getId());
+        getClientUtil().waitForValidProcessor(reverseContents.getId());
+        getClientUtil().waitForValidProcessor(terminateFlowFile.getId());
+
+        getClientUtil().startProcessor(reverseContents);
+
+        disconnectNode(2);
+        reconnectNode(2);
+        waitForAllNodesConnected();
+    }
+
+    @Test
+    public void testReconnectWithRunningProcessorUnchangedInChildGroup() throws NiFiClientException, IOException, InterruptedException {
+        final ProcessGroupEntity group = getClientUtil().createProcessGroup("testReconnectWithRunningProcessorUnchangedInChildGroup", "root");
+        final ProcessorEntity generateFlowFile = getClientUtil().createProcessor("GenerateFlowFile", group.getId());
+        final ProcessorEntity reverseContents = getClientUtil().createProcessor("ReverseContents", group.getId());
+        final ProcessorEntity terminateFlowFile = getClientUtil().createProcessor("TerminateFlowFile", group.getId());
+        getClientUtil().createConnection(generateFlowFile, reverseContents, "success", group.getId());
+        getClientUtil().createConnection(reverseContents, terminateFlowFile, "success", group.getId());
+
+        getClientUtil().waitForValidProcessor(generateFlowFile.getId());
+        getClientUtil().waitForValidProcessor(reverseContents.getId());
+        getClientUtil().waitForValidProcessor(terminateFlowFile.getId());
+
+        getClientUtil().startProcessor(reverseContents);
+
+        disconnectNode(2);
+        reconnectNode(2);
+        waitForAllNodesConnected();
     }
 
 

@@ -17,12 +17,12 @@
 
 package org.apache.nifi.c2.protocol.api;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 
-@ApiModel
 public class FlowInfo implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -30,8 +30,11 @@ public class FlowInfo implements Serializable {
     private FlowUri flowUri;
     private Map<String, ComponentStatus> components;
     private Map<String, FlowQueueStatus> queues;
+    private List<ProcessorBulletin> processorBulletins;
+    private List<ProcessorStatus> processorStatuses;
+    private RunStatus runStatus;
 
-    @ApiModelProperty(value = "A unique identifier of the flow currently deployed on the agent", required = true)
+    @Schema(description = "A unique identifier of the flow currently deployed on the agent")
     public String getFlowId() {
         return flowId;
     }
@@ -40,7 +43,7 @@ public class FlowInfo implements Serializable {
         this.flowId = flowId;
     }
 
-    @ApiModelProperty("The Uniform Resource Identifier (URI) for the flow")
+    @Schema(description = "The Uniform Resource Identifier (URI) for the flow")
     public FlowUri getFlowUri() {
         return flowUri;
     }
@@ -49,7 +52,7 @@ public class FlowInfo implements Serializable {
         this.flowUri = flowUri;
     }
 
-    @ApiModelProperty("Status and for each component that is part of the flow (e.g., processors)")
+    @Schema(description = "Status and for each component that is part of the flow (e.g., processors)")
     public Map<String, ComponentStatus> getComponents() {
         return components;
     }
@@ -58,7 +61,7 @@ public class FlowInfo implements Serializable {
         this.components = components;
     }
 
-    @ApiModelProperty("Status and metrics for each flow connection queue")
+    @Schema(description = "Status and metrics for each flow connection queue")
     public Map<String, FlowQueueStatus> getQueues() {
         return queues;
     }
@@ -67,4 +70,30 @@ public class FlowInfo implements Serializable {
         this.queues = queues;
     }
 
+    @Schema(description = "Bulletins of each processors")
+    public List<ProcessorBulletin> getProcessorBulletins() {
+        return processorBulletins;
+    }
+
+    public void setProcessorBulletins(List<ProcessorBulletin> processorBulletins) {
+        this.processorBulletins = processorBulletins;
+    }
+
+    @Schema(description = "Status and metrics for each processors")
+    public List<ProcessorStatus> getProcessorStatuses() {
+        return processorStatuses;
+    }
+
+    public void setProcessorStatuses(List<ProcessorStatus> processorStatuses) {
+        this.processorStatuses = processorStatuses;
+    }
+
+    @Schema(description = "Run status of the flow")
+    public RunStatus getRunStatus() {
+        return runStatus;
+    }
+
+    public void setRunStatus(RunStatus runStatus) {
+        this.runStatus = runStatus;
+    }
 }

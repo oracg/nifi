@@ -87,9 +87,10 @@ public class MockProcessSession implements ProcessSession {
     private final Map<FlowFile, OutputStream> openOutputStreams = new HashMap<>();
     private final StateManager stateManager;
     private final boolean allowSynchronousCommits;
+    private final boolean allowRecursiveReads;
 
     private boolean committed = false;
-    private boolean rolledback = false;
+    private boolean rolledBack = false;
     private final Set<Long> removedFlowFiles = new HashSet<>();
 
     private static final AtomicLong enqueuedIndex = new AtomicLong(0L);
@@ -108,6 +109,11 @@ public class MockProcessSession implements ProcessSession {
 
     public MockProcessSession(final SharedSessionState sharedState, final Processor processor, final boolean enforceStreamsClosed, final StateManager stateManager,
                               final boolean allowSynchronousCommits) {
+        this(sharedState, processor, enforceStreamsClosed, stateManager, allowSynchronousCommits, false);
+    }
+
+    public MockProcessSession(final SharedSessionState sharedState, final Processor processor, final boolean enforceStreamsClosed, final StateManager stateManager,
+                              final boolean allowSynchronousCommits, final boolean allowRecursiveReads) {
         this.processor = processor;
         this.enforceStreamsClosed = enforceStreamsClosed;
         this.sharedState = sharedState;
@@ -115,6 +121,7 @@ public class MockProcessSession implements ProcessSession {
         this.provenanceReporter = new MockProvenanceReporter(this, sharedState, processor.getIdentifier(), processor.getClass().getSimpleName());
         this.stateManager = stateManager;
         this.allowSynchronousCommits = allowSynchronousCommits;
+        this.allowRecursiveReads = allowRecursiveReads;
     }
 
     @Override
@@ -135,6 +142,7 @@ public class MockProcessSession implements ProcessSession {
         counterMap.put(name, counter);
     }
 
+    @Override
     public void migrate(final ProcessSession newOwner) {
         migrate(newOwner, new ArrayList<>((Collection) currentVersions.values()));
     }
@@ -336,7 +344,7 @@ public class MockProcessSession implements ProcessSession {
      * session
      */
     public void clearRollback() {
-        rolledback = false;
+        rolledBack = false;
     }
 
     @Override
@@ -658,6 +666,11 @@ public class MockProcessSession implements ProcessSession {
             }
 
             @Override
+            public boolean markSupported() {
+                return true;
+            }
+
+            @Override
             public void reset() {
                 bais.reset();
             }
@@ -786,7 +799,7 @@ public class MockProcessSession implements ProcessSession {
     @Override
     public void rollback(final boolean penalize) {
         //if we've already committed then rollback is basically a no-op
-        if(committed){
+        if (committed) {
             return;
         }
 
@@ -816,7 +829,7 @@ public class MockProcessSession implements ProcessSession {
             }
         }
 
-        rolledback = true;
+        rolledBack = true;
         beingProcessed.clear();
         currentVersions.clear();
         originalVersions.clear();
@@ -838,7 +851,7 @@ public class MockProcessSession implements ProcessSession {
         // if the flowfile provided was created in this session (i.e. it's in currentVersions and not in original versions),
         // then throw an exception indicating that you can't transfer flowfiles back to self.
         // this mimics the same behavior in StandardProcessSession
-        if(currentVersions.get(flowFile.getId()) != null && originalVersions.get(flowFile.getId()) == null) {
+        if (currentVersions.get(flowFile.getId()) != null && originalVersions.get(flowFile.getId()) == null) {
             throw new IllegalArgumentException("Cannot transfer FlowFiles that are created in this Session back to self");
         }
 
@@ -878,7 +891,7 @@ public class MockProcessSession implements ProcessSession {
             transfer(flowFile);
             return;
         }
-        if(!processor.getRelationships().contains(relationship)){
+        if (!processor.getRelationships().contains(relationship)) {
             throw new IllegalArgumentException("this relationship " + relationship.getName() + " is not known");
         }
 
@@ -1086,7 +1099,7 @@ public class MockProcessSession implements ProcessSession {
 
     private List<FlowFile> validateState(final Collection<FlowFile> flowFiles) {
         return flowFiles.stream()
-            .map(ff -> validateState(ff))
+            .map(this::validateState)
             .collect(Collectors.toList());
     }
 
@@ -1098,7 +1111,7 @@ public class MockProcessSession implements ProcessSession {
             throw new FlowFileHandlingException(flowFile + " is not known in this session");
         }
 
-        if (readRecursionSet.containsKey(flowFile)) {
+        if (readRecursionSet.containsKey(flowFile) && !allowRecursiveReads) {
             throw new IllegalStateException(flowFile + " already in use for an active callback or InputStream created by ProcessSession.read(FlowFile) has not been closed");
         }
 
@@ -1228,14 +1241,14 @@ public class MockProcessSession implements ProcessSession {
      * Assert that {@link #rollback()} has been called
      */
     public void assertRolledBack() {
-        Assertions.assertTrue(rolledback, "Session was not rolled back");
+        Assertions.assertTrue(rolledBack, "Session was not rolled back");
     }
 
     /**
      * Assert that {@link #rollback()} has not been called
      */
     public void assertNotRolledBack() {
-        Assertions.assertFalse(rolledback, "Session was rolled back");
+        Assertions.assertFalse(rolledBack, "Session was rolled back");
     }
 
     /**
@@ -1329,7 +1342,7 @@ public class MockProcessSession implements ProcessSession {
             final List<MockFlowFile> flowFiles = entry.getValue();
             final Relationship rel = entry.getKey();
             for (MockFlowFile mockFlowFile : flowFiles) {
-                if(rel.equals(relationship)) {
+                if (rel.equals(relationship)) {
                     validator.assertFlowFile(mockFlowFile);
                 }
             }

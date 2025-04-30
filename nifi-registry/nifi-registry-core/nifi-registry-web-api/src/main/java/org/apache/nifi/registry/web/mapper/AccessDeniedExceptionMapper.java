@@ -24,10 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * Maps access denied exceptions into a client response.
@@ -60,7 +60,7 @@ public class AccessDeniedExceptionMapper implements ExceptionMapper<AccessDenied
             identity = user.toString();
         }
 
-        logger.info(String.format("%s does not have permission to access the requested resource. %s Returning %s response.", identity, exception.getMessage(), status));
+        logger.info("{} does not have permission to access the requested resource. {} Returning {} response.", identity, exception.getMessage(), status);
 
         if (logger.isDebugEnabled()) {
             logger.debug(StringUtils.EMPTY, exception);

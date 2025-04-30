@@ -23,7 +23,7 @@ import org.apache.nifi.provenance.ProvenanceEventType;
 import org.apache.nifi.provenance.SearchableFields;
 import org.apache.nifi.provenance.search.SearchableField;
 import org.apache.nifi.tests.system.NiFiSystemIT;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClientException;
+import org.apache.nifi.toolkit.client.NiFiClientException;
 import org.apache.nifi.web.api.dto.FlowFileSummaryDTO;
 import org.apache.nifi.web.api.dto.SystemDiagnosticsSnapshotDTO.ResourceClaimDetailsDTO;
 import org.apache.nifi.web.api.dto.VersionControlInformationDTO;
@@ -46,6 +46,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -58,7 +59,6 @@ import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class StatelessBasicsIT extends NiFiSystemIT {
@@ -81,6 +81,62 @@ public class StatelessBasicsIT extends NiFiSystemIT {
     @BeforeEach
     public void captureStartClaimantCount() throws NiFiClientException, IOException {
         startClaimantCount = getClaimantCounts();
+    }
+
+    @Test
+    public void testOrderingIntraSession() throws NiFiClientException, IOException, InterruptedException {
+        final int batchSize = 100;
+
+        statelessGroup = getClientUtil().createProcessGroup("testOrderingIntraSession", "root");
+        getClientUtil().markStateless(statelessGroup, "1 min");
+
+        final ProcessorEntity generate = getClientUtil().createProcessor(GENERATE_FLOWFILE, statelessGroup.getId());
+        final Map<String, String> generateProperties = new HashMap<>();
+        generateProperties.put("Text", HELLO_WORLD);
+        generateProperties.put("Batch Size", String.valueOf(batchSize));
+        generateProperties.put("Counter", "${nextInt()}");
+        getClientUtil().updateProcessorProperties(generate, generateProperties);
+
+        final ProcessorEntity router = getClientUtil().createProcessor("ReOrderFlowFiles", statelessGroup.getId());
+        getClientUtil().updateProcessorProperties(router, Map.of("First Group Selection Criteria", "${Counter:mod(2):equals(0)}"));
+
+        // Verify that FlowFiles are ordered correctly within stateless flow.
+        final ProcessorEntity verifyProcessor = getClientUtil().createProcessor("VerifyEvenThenOdd", statelessGroup.getId());
+        getClientUtil().updateProcessorProperties(verifyProcessor, Map.of("Attribute Name", "Counter"));
+
+        final PortEntity outputPort = getClientUtil().createOutputPort("Out", statelessGroup.getId());
+
+        getClientUtil().createConnection(generate, router, "success");
+        getClientUtil().createConnection(router, verifyProcessor, "success");
+        getClientUtil().createConnection(verifyProcessor, outputPort, "success");
+        getClientUtil().setAutoTerminatedRelationships(verifyProcessor, "failure");
+
+        final ProcessorEntity terminate = getClientUtil().createProcessor(TERMINATE_FLOWFILE);
+        final ConnectionEntity outputToTerminate = getClientUtil().createConnection(outputPort, terminate);
+        getClientUtil().updateConnectionPrioritizer(outputToTerminate, "FirstInFirstOutPrioritizer");
+
+        getClientUtil().waitForValidProcessor(generate.getId());
+        getClientUtil().waitForValidProcessor(router.getId());
+        getClientUtil().waitForValidProcessor(verifyProcessor.getId());
+        getClientUtil().startProcessGroupComponents(statelessGroup.getId());
+
+        waitForQueueCount(outputToTerminate.getId(), batchSize);
+        getClientUtil().stopProcessGroupComponents(statelessGroup.getId());
+
+        final List<String> actualCounterValues = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            final FlowFileEntity flowFileEntity = getClientUtil().getQueueFlowFile(outputToTerminate.getId(), i);
+            actualCounterValues.add(flowFileEntity.getFlowFile().getAttributes().get("Counter"));
+        }
+
+        int expectedCounter = 0;
+        for (int i = 0; i < batchSize; i++) {
+            assertEquals(String.valueOf(expectedCounter), actualCounterValues.get(i));
+            expectedCounter += 2;
+            if (expectedCounter >= batchSize) {
+                expectedCounter = 1;
+            }
+        }
     }
 
     @Test
@@ -185,7 +241,6 @@ public class StatelessBasicsIT extends NiFiSystemIT {
         final long fiveSecsFromNow = System.currentTimeMillis() + 5000L;
         while (System.currentTimeMillis() <= fiveSecsFromNow) {
             final int queueCount = getConnectionQueueSize(outputToTerminate.getId());
-            assertNotEquals(1, queueCount); // We should never have a queue count of 1
 
             if (queueCount == 2) {
                 break;
@@ -296,7 +351,7 @@ public class StatelessBasicsIT extends NiFiSystemIT {
         assertEquals(0, getConnectionQueueSize(generateToInput.getId()));
 
         final Map<String, Integer> countsPerContents = new HashMap<>();
-        for (int i=0; i < 6; i++) {
+        for (int i = 0; i < 6; i++) {
             final String outputContent = getClientUtil().getFlowFileContentAsUtf8(outputToTerminate.getId(), i);
             countsPerContents.merge(outputContent, 1, (a, b) -> a + b);
 
@@ -615,7 +670,7 @@ public class StatelessBasicsIT extends NiFiSystemIT {
         final String failureOutputContents = getClientUtil().getFlowFileContentAsUtf8(failureToTerminate.getId(), 0);
         assertEquals(HELLO_WORLD, failureOutputContents);
 
-        for (int i=0; i < 4; i++) {
+        for (int i = 0; i < 4; i++) {
             final String successOutputContents = getClientUtil().getFlowFileContentAsUtf8(outputToTerminate.getId(), i);
             assertEquals(HELLO_WORLD_REVERSED, successOutputContents);
         }
@@ -740,7 +795,7 @@ public class StatelessBasicsIT extends NiFiSystemIT {
         final FlowRegistryClientEntity registryClient = registerClient();
 
         // Register the first version of the flow
-        final VersionControlInformationEntity vci = getClientUtil().startVersionControl(statelessGroup, registryClient, "First Bucket", "testChangeFlowVersion");
+        final VersionControlInformationEntity vci = getClientUtil().startVersionControl(statelessGroup, registryClient, "test-flows", "first-flow");
         waitFor(() -> VersionControlInformationDTO.UP_TO_DATE.equals(getClientUtil().getVersionControlState(statelessGroup.getId())) );
 
         // Update the flow
@@ -751,7 +806,7 @@ public class StatelessBasicsIT extends NiFiSystemIT {
         getClientUtil().createConnection(reverseContents, outputPort, SUCCESS, statelessGroup.getId());
 
         // Save v2 of the flow
-        final VersionControlInformationEntity v2Vci = getClientUtil().saveFlowVersion(statelessGroup, registryClient, vci);
+        getClientUtil().saveFlowVersion(statelessGroup, registryClient, vci);
         waitFor(() -> VersionControlInformationDTO.UP_TO_DATE.equals(getClientUtil().getVersionControlState(statelessGroup.getId())) );
 
         // Let a FlowFile go through and verify the results
@@ -763,14 +818,14 @@ public class StatelessBasicsIT extends NiFiSystemIT {
         getClientUtil().stopProcessor(generate);
 
         // Switch back to v1 while flow is running
-        getClientUtil().changeFlowVersion(statelessGroup.getId(), 1);
+        getClientUtil().changeFlowVersion(statelessGroup.getId(), "1");
         getClientUtil().startProcessor(generate);
         waitForQueueCount(outputToTerminate, 2);
         assertEquals(HELLO_WORLD, getClientUtil().getFlowFileContentAsUtf8(outputToTerminate.getId(), 1));
         getClientUtil().stopProcessor(generate);
 
         // Switch back to v2 while flow is running
-        getClientUtil().changeFlowVersion(statelessGroup.getId(), 2);
+        getClientUtil().changeFlowVersion(statelessGroup.getId(), "2");
         getClientUtil().startProcessor(generate);
         waitForQueueCount(outputToTerminate, 3);
         assertEquals(HELLO_WORLD_REVERSED, getClientUtil().getFlowFileContentAsUtf8(outputToTerminate.getId(), 2));

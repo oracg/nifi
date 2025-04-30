@@ -15,8 +15,6 @@
 -->
 
 <configuration scan="true" scanPeriod="30 seconds">
-    <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook" />
-
     <contextListener class="ch.qos.logback.classic.jul.LevelChangePropagator">
         <resetJUL>true</resetJUL>
     </contextListener>
@@ -102,6 +100,8 @@
     <logger name="org.apache.nifi.processors.standard.LogMessage" level="INFO"/>
     <logger name="org.apache.nifi.controller.repository.StandardProcessSession" level="WARN" />
 
+    <!-- Py4J set to WARN to avoid verbose socket communication messages -->
+    <logger name="py4j.java_gateway" level="WARN" />
 
     <logger name="org.apache.zookeeper.ClientCnxn" level="ERROR" />
     <logger name="org.apache.zookeeper.server.NIOServerCnxn" level="ERROR" />
@@ -114,6 +114,9 @@
 
     <logger name="org.apache.calcite.runtime.CalciteException" level="OFF" />
     <logger name="deprecation" level="OFF" />
+
+    <!-- Py4J set to WARN to avoid verbose socket communication messages -->
+    <logger name="py4j" level="WARN" />
 
     <logger name="org.apache.curator.framework.recipes.leader.LeaderSelector" level="OFF" />
     <logger name="org.apache.curator.ConnectionState" level="OFF" />

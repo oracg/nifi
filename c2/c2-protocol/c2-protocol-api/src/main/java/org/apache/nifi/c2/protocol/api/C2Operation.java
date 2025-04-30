@@ -17,8 +17,8 @@
 
 package org.apache.nifi.c2.protocol.api;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.io.Serializable;
 import java.util.Map;
 import java.util.Objects;
@@ -26,17 +26,16 @@ import java.util.Set;
 
 import static java.lang.String.format;
 
-@ApiModel
 public class C2Operation implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String identifier;
     private OperationType operation;
     private OperandType operand;
-    private Map<String, String> args;
+    private Map<String, Object> args;
     private Set<String> dependencies;
 
-    @ApiModelProperty(value = "A unique identifier for the operation", accessMode = ApiModelProperty.AccessMode.READ_ONLY)
+    @Schema(description = "A unique identifier for the operation", accessMode = Schema.AccessMode.READ_ONLY)
     public String getIdentifier() {
         return identifier;
     }
@@ -45,7 +44,7 @@ public class C2Operation implements Serializable {
         this.identifier = identifier;
     }
 
-    @ApiModelProperty(value = "The type of operation", required = true)
+    @Schema(description = "The type of operation")
     public OperationType getOperation() {
         return operation;
     }
@@ -58,13 +57,7 @@ public class C2Operation implements Serializable {
         this.operation = operation;
     }
 
-    @ApiModelProperty(
-        value = "The primary operand of the operation",
-        notes = "This is an optional field which contains the name of the entity that is target of the operation. " +
-            "Most operations can be fully specified with zero or one operands." +
-            "If no operand is needed, this field will be absent." +
-            "If one operand is insufficient, the operation will contain an args map" +
-            "with additional keyword parameters and values (see 'args').")
+    @Schema(description = "The primary operand of the operation")
     public OperandType getOperand() {
         return operand;
     }
@@ -77,8 +70,7 @@ public class C2Operation implements Serializable {
         this.operand = operand;
     }
 
-    @ApiModelProperty(value = "If the operation requires arguments ",
-        notes = "This is an optional field and only provided when an operation has arguments " +
+    @Schema(description = "This is an optional field and only provided when an operation has arguments " +
             "in additional to the primary operand or optional parameters. Arguments are " +
             "arbitrary key-value pairs whose interpretation is subject to the context" +
             "of the operation and operand. For example, given:" +
@@ -87,15 +79,15 @@ public class C2Operation implements Serializable {
             "The syntax and semantics of these arguments is defined per operation in" +
             "the C2 protocol and possibly extended by an agent's implementation of the" +
             "C2 protocol.")
-    public Map<String, String> getArgs() {
+    public Map<String, Object> getArgs() {
         return args;
     }
 
-    public void setArgs(Map<String, String> args) {
+    public void setArgs(Map<String, Object> args) {
         this.args = args;
     }
 
-    @ApiModelProperty("Optional set of operation ids that this operation depends on. " +
+    @Schema(description = "Optional set of operation ids that this operation depends on. " +
         "Executing this operation is conditional on the success of all dependency operations.")
     public Set<String> getDependencies() {
         return dependencies;

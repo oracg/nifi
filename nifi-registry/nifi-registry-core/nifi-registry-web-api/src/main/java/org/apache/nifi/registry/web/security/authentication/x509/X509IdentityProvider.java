@@ -31,7 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.web.authentication.preauth.x509.X509PrincipalExtractor;
 import org.springframework.stereotype.Component;
 
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
@@ -140,7 +140,7 @@ public class X509IdentityProvider implements IdentityProvider {
         String principal = authenticationRequest.getUsername();
 
         try {
-            X509Certificate clientCertificate = (X509Certificate)authenticationRequest.getCredentials();
+            X509Certificate clientCertificate = (X509Certificate) authenticationRequest.getCredentials();
             validateClientCertificate(clientCertificate);
         } catch (CertificateExpiredException cee) {
             final String message = String.format("Client certificate for (%s) is expired.", principal);
@@ -165,7 +165,7 @@ public class X509IdentityProvider implements IdentityProvider {
     }
 
     @Override
-    public void preDestruction() throws SecurityProviderDestructionException {}
+    public void preDestruction() throws SecurityProviderDestructionException { }
 
 
     private void validateClientCertificate(X509Certificate certificate) throws CertificateExpiredException, CertificateNotYetValidException {

@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -62,7 +62,7 @@ public class ExtensionManager {
     }
 
     private final NiFiRegistryProperties properties;
-    private final Map<String,ExtensionClassLoader> classLoaderMap = new HashMap<>();
+    private final Map<String, ExtensionClassLoader> classLoaderMap = new HashMap<>();
     private final AtomicBoolean loaded = new AtomicBoolean(false);
 
     @Autowired
@@ -108,7 +108,7 @@ public class ExtensionManager {
             if (classLoaderMap.containsKey(extensionClassName)) {
                 final String currDir = extensionClassLoader.getRootDir();
                 final String existingDir = classLoaderMap.get(extensionClassName).getRootDir();
-                LOGGER.warn("Skipping {} from {} which was already found in {}", new Object[]{extensionClassName, currDir, existingDir});
+                LOGGER.warn("Skipping {} from {} which was already found in {}", extensionClassName, currDir, existingDir);
             } else {
                 classLoaderMap.put(o.getClass().getCanonicalName(), extensionClassLoader);
             }
@@ -158,12 +158,12 @@ public class ExtensionManager {
         final File dirFile = new File(dir);
 
         if (!dirFile.exists()) {
-            LOGGER.warn("Skipping extension directory that does not exist: " + dir);
+            LOGGER.warn("Skipping extension directory that does not exist: {}", dir);
             return null;
         }
 
         if (!dirFile.canRead()) {
-            LOGGER.warn("Skipping extension directory that can not be read: " + dir);
+            LOGGER.warn("Skipping extension directory that can not be read: {}", dir);
             return null;
         }
 
@@ -172,8 +172,7 @@ public class ExtensionManager {
         try {
             resources.add(dirFile.toURI().toURL());
         } catch (final MalformedURLException mfe) {
-            LOGGER.warn("Unable to add {} to classpath due to {}",
-                    new Object[]{ dirFile.getAbsolutePath(), mfe.getMessage()}, mfe);
+            LOGGER.warn("Unable to add {} to classpath", dirFile.getAbsolutePath(), mfe);
         }
 
         if (dirFile.isDirectory()) {
@@ -181,13 +180,12 @@ public class ExtensionManager {
             if (files != null) {
                 for (final File resource : files) {
                     if (resource.isDirectory()) {
-                        LOGGER.warn("Recursive directories are not supported, skipping " + resource.getAbsolutePath());
+                        LOGGER.warn("Recursive directories are not supported, skipping {}", resource.getAbsolutePath());
                     } else {
                         try {
                             resources.add(resource.toURI().toURL());
                         } catch (final MalformedURLException mfe) {
-                            LOGGER.warn("Unable to add {} to classpath due to {}",
-                                    new Object[]{ resource.getAbsolutePath(), mfe.getMessage()}, mfe);
+                            LOGGER.warn("Unable to add {} to classpath", resource.getAbsolutePath(), mfe);
                         }
                     }
                 }

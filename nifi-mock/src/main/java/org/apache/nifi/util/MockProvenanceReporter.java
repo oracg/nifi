@@ -16,20 +16,21 @@
  */
 package org.apache.nifi.util;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
 import org.apache.nifi.flowfile.FlowFile;
 import org.apache.nifi.processor.Relationship;
 import org.apache.nifi.processor.exception.FlowFileHandlingException;
+import org.apache.nifi.provenance.MockProvenanceEvent;
 import org.apache.nifi.provenance.ProvenanceEventBuilder;
 import org.apache.nifi.provenance.ProvenanceEventRecord;
 import org.apache.nifi.provenance.ProvenanceEventType;
 import org.apache.nifi.provenance.ProvenanceReporter;
-import org.apache.nifi.provenance.StandardProvenanceEventRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 public class MockProvenanceReporter implements ProvenanceReporter {
     private static final Logger logger = LoggerFactory.getLogger(MockProvenanceReporter.class);
@@ -56,16 +57,6 @@ public class MockProvenanceReporter implements ProvenanceReporter {
         return Collections.unmodifiableSet(events);
     }
 
-    /**
-     * Removes the given event from the reporter
-     *
-     * @param event
-     *            event
-     */
-    void remove(final ProvenanceEventRecord event) {
-        events.remove(event);
-    }
-
     void clear() {
         events.clear();
     }
@@ -80,33 +71,6 @@ public class MockProvenanceReporter implements ProvenanceReporter {
 
         events.removeAll(toMove);
         newOwner.events.addAll(toMove);
-    }
-
-    /**
-     * Generates a Fork event for the given child and parents but does not
-     * register the event. This is useful so that a ProcessSession has the
-     * ability to de-dupe events, since one or more events may be created by the
-     * session itself, as well as by the Processor
-     *
-     * @param parents
-     *            parents
-     * @param child
-     *            child
-     * @return record
-     */
-    ProvenanceEventRecord generateJoinEvent(final Collection<FlowFile> parents, final FlowFile child) {
-        final ProvenanceEventBuilder eventBuilder = build(child, ProvenanceEventType.JOIN);
-        eventBuilder.addChildFlowFile(child);
-
-        for (final FlowFile parent : parents) {
-            eventBuilder.addParentFlowFile(parent);
-        }
-
-        return eventBuilder.build();
-    }
-
-    ProvenanceEventRecord generateDropEvent(final FlowFile flowFile, final String details) {
-        return build(flowFile, ProvenanceEventType.DROP).setDetails(details).build();
     }
 
     @Override
@@ -142,10 +106,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
                 .build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -171,10 +132,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
                 .build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -218,10 +176,34 @@ public class MockProvenanceReporter implements ProvenanceReporter {
                 events.add(record);
             }
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
+            logger.error("Failed to generate Provenance Event", e);
+        }
+    }
+
+    @Override
+    public void upload(final FlowFile flowFile, final long size, final String transitUri) {
+        upload(flowFile, size, transitUri, null, -1L, true);
+
+    }
+
+    @Override
+    public void upload(final FlowFile flowFile, final long size, final String transitUri, final String details,
+                       final long transmissionMillis, final boolean force) {
+        try {
+            final String displayedSizeInBytes = size + " bytes";
+            final String enrichedDetails = details == null ? displayedSizeInBytes : details + " " + displayedSizeInBytes;
+            final ProvenanceEventRecord record = build(flowFile, ProvenanceEventType.UPLOAD)
+                    .setTransitUri(transitUri)
+                    .setEventDuration(transmissionMillis)
+                    .setDetails(enrichedDetails)
+                    .build();
+            if (force) {
+                sharedSessionState.addProvenanceEvents(Collections.singleton(record));
+            } else {
+                events.add(record);
             }
+        } catch (final Exception e) {
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -242,10 +224,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
                     .setTransitUri(transitUri).setDetails(details).build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -269,10 +248,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
             final ProvenanceEventRecord record = build(flowFile, ProvenanceEventType.ADDINFO).setAlternateIdentifierUri(alternateIdentifierUri).build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -286,23 +262,8 @@ public class MockProvenanceReporter implements ProvenanceReporter {
             events.add(record);
             return record;
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
             return null;
-        }
-    }
-
-    void expire(final FlowFile flowFile, final String details) {
-        try {
-            final ProvenanceEventRecord record = build(flowFile, ProvenanceEventType.EXPIRE).setDetails(details).build();
-            events.add(record);
-        } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
         }
     }
 
@@ -342,10 +303,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
 
             events.add(eventBuilder.build());
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -379,10 +337,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
 
             events.add(eventBuilder.build());
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -396,10 +351,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
             eventBuilder.addParentFlowFile(parent);
             events.add(eventBuilder.build());
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -426,10 +378,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
             final ProvenanceEventRecord record = build(flowFile, ProvenanceEventType.CONTENT_MODIFIED).setEventDuration(processingMillis).setDetails(details).build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -446,10 +395,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
             final ProvenanceEventRecord record = build(flowFile, ProvenanceEventType.ATTRIBUTES_MODIFIED).setDetails(details).build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -476,10 +422,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
             final ProvenanceEventRecord record = build(flowFile, ProvenanceEventType.ROUTE).setRelationship(relationship).setDetails(details).setEventDuration(processingDuration).build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -496,10 +439,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
             final ProvenanceEventRecord record = build(flowFile, ProvenanceEventType.CREATE).setDetails(details).build();
             events.add(record);
         } catch (final Exception e) {
-            logger.error("Failed to generate Provenance Event due to " + e);
-            if (logger.isDebugEnabled()) {
-                logger.error("", e);
-            }
+            logger.error("Failed to generate Provenance Event", e);
         }
     }
 
@@ -534,7 +474,7 @@ public class MockProvenanceReporter implements ProvenanceReporter {
     }
 
     ProvenanceEventBuilder build(final FlowFile flowFile, final ProvenanceEventType eventType) {
-        final ProvenanceEventBuilder builder = new StandardProvenanceEventRecord.Builder();
+        final ProvenanceEventBuilder builder = new MockProvenanceEvent.Builder();
         builder.setEventType(eventType);
         builder.fromFlowFile(flowFile);
         builder.setLineageStartDate(flowFile.getLineageStartDate());
@@ -542,5 +482,4 @@ public class MockProvenanceReporter implements ProvenanceReporter {
         builder.setComponentType(processorType);
         return builder;
     }
-
 }

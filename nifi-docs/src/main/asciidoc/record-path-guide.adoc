@@ -456,6 +456,48 @@ Concatenates all the arguments together.
 |==========================================================
 
 
+=== join
+
+Joins together multiple values with a separator.
+
+|==========================================================
+| RecordPath | Return value
+| `join(', ', /workAddress/* )` | 123, 5th Avenue, New York, NY, 10020
+|==========================================================
+
+
+=== anchored
+
+Allows evaluating a RecordPath while anchoring the root context to a child record.
+
+|==========================================================
+| RecordPath | Return value
+| `anchored(/homeAddress, /city)` | Jersey City
+|==========================================================
+
+Additionally, this can be used in conjunction with arrays. For example, if we have the following record:
+----
+{
+    "id": "1234",
+    "elements": [{
+        "name": "book",
+        "color": "red"
+    }, {
+        "name": "computer",
+        "color": "black"
+    }]
+}
+----
+
+We can evaluate hte following Record paths:
+
+|==========================================================
+| RecordPath | Return value
+| `anchored(/elements, /name)` | The array containing `book` and `computer`
+| `anchored(/elements, concat(/name, ': ', /color))` | The array containing `book: red` and `computer: black`
+|==========================================================
+
+
 === fieldName
 
 Normally, when a path is given to a particular field in a Record, what is returned is the value of that field. It
@@ -640,7 +682,7 @@ Converts a Date to a String in the given format with an optional time zone. The 
 time zone when the second argument is not provided.
 
 The first argument to this function must be a Date or a Number, and the second argument must be a format String that
-follows the Java SimpleDateFormat, and the third argument, optional, must be a format String that
+follows the Java DateTimeFormatter, and the third argument, optional, must be a format String that
 either an abbreviation such as "PST", a full name such as "America/Los_Angeles", or a custom ID such as "GMT-8:00"
 
 For example, given a schema such as:
@@ -894,7 +936,16 @@ The following record path expression would convert the record into an escaped JS
 === unescapeJson
 
 Converts a stringified JSON element to a Record, Array or simple field (e.g. String), using the UTF-8 character set.
-Optionally convert JSON Objects parsed as Maps into Records (defaults to false).
+
+This function takes up to three arguments:
+
+1. The Record Path of the stringified JSON element to be parsed
+2. (optional) whether to convert parsed JSON Objects from Maps to Records, default = `false`
+3. (optional) whether to recursively convert nested JSON Objects from Maps to Records, default = `false`
+
+*Note*: RecordSetWriters will not be able to serialise Maps, so fields may be omitted if not converted to Records.
+For example, using `unescapeJson` to replace the root ("/") of a Record in `UpdateRecord` without using the Record conversion,
+would result in an empty output because the RecordSetWriter is unable to match the resultant Map content to a RecordSchema.
 
 For example, given a schema such as:
 
@@ -949,6 +1000,23 @@ Given a record such as:
 
 ----
 {
+  "json_str": "{\"name\":\"John\",\"age\":30,\"addresses\"[{\"address_1\": \"123 Fake Street\"}]}"
+}
+----
+
+The following record path expression would return:
+
+|==========================================================
+| RecordPath | Return value
+| `unescapeJson(/json_str, 'false')` | {"name"="John", "age"=30, "addresses"=[{"address_1"="123 Fake Street"}]} (as a Map, with each entry in "addresses" as a Map)
+| `unescapeJson(/json_str, 'true', 'false')` | {"name": "John", "age": 30, "addresses"=[{"address_1"="123 Fake Street"}]} (as a Record, with each entry in "addresses" as a Map)
+| `unescapeJson(/json_str, 'true', 'true')` | {"name": "John", "age": 30, "addresses": [{"address_1": "123 Fake Street"}]} (as a Record, with each entry in "addresses" as a Record)
+|==========================================================
+
+Given a record such as:
+
+----
+{
   "json_str": "\"John\""
 }
 ----
@@ -960,7 +1028,7 @@ The following record path expression would return:
 | `unescapeJson(/json_str)` | "John"
 |==========================================================
 
-Note that the target schema must be pre-defined if the unescaped JSON is to be set in a Record's fields - Infer Schema will not currently do this automatically.
+*Note* that the target schema must be pre-defined if the `unescaped` JSON is to be set in a Record's fields - Infer Schema will not currently do this automatically.
 
 === hash
 
@@ -1120,6 +1188,131 @@ Would yield a value of `2`. We could also use this as a filter, such as:
 /id[ count(/elements[*]) = 2 ]
 ----
 Which will return the `id` element with a value of `1234`.
+
+
+=== mapOf
+
+Creates a map of Strings with the given parameters. For example, if we have the following record:
+
+----
+{
+    "firstName": "John",
+    "lastName": "Snow"
+}
+----
+
+We could use the `UpdateRecord` processor with
+
+----
+/fullName => mapOf("firstName", /firstName, "lastName", /lastName)
+----
+
+And that would give us something like:
+
+----
+{
+    "firstName": "John",
+    "lastName": "Snow",
+    "fullName": {"firstName": "John", "lastName": "Snow"}
+}
+----
+
+This function requires an even number of arguments and the record paths must represent simple field values.
+
+=== recordOf
+
+Creates a nested record with the given parameters. For example, if we have the following record:
+
+----
+{
+  "firstName": "Alice",
+  "lastName": "Koopa",
+  "age": 30,
+  "hobbies": ["reading", "hiking", "coding"],
+  "address": {
+    "street": "123 Main St",
+    "city": "Anytown",
+    "state": "CA"
+  }
+}
+----
+
+We could use the `UpdateRecord` processor with
+
+----
+/profile => recordOf("name", /firstName, "location", /address/city, "hobbies", /hobbies, /age, "years old")
+----
+
+And that would give us something like:
+
+----
+{
+  "name": "Alice",
+  "hobbies": ["reading", "hiking", "coding"],
+  "location": "Anytown",
+  "30": "years old"
+}
+----
+
+This function requires an even number of arguments.
+Each pair of arguments resembles a field in the new record.
+Every odd argument, the first one of each pair, is used as field name and coerced into a String value.
+Every even argument, the second one of each pair, is used as field value.
+
+
+=== arrayOf
+
+Creates an array from multiple values.
+
+```
+{
+    "id": "1234",
+    "elements": [{
+        "name": "book",
+        "color": "red"
+    }, {
+        "name": "computer",
+        "color": "black"
+    }]
+}
+```
+
+We could make use of the `arrayOf` function, in conjunction with the `unescapeJson` function to append a new element to the `elements` array.
+Given this example input, a RecordPath of `arrayOf(/elements[*], unescapeJson('{"name":"phone","color":"blue"}'))` would return the following array:
+
+```
+[{
+    "name": "book",
+    "color": "red"
+}, {
+    "name": "computer",
+    "color": "black"
+}, {
+    "name": "phone",
+    "color": "blue"
+}]
+```
+
+We may also use the `arrayOf` function for appending multiple elements to an array. Given the input record:
+
+```
+{
+  "name": "John Doe",
+  "friends": ["Jane", "Jack", "Jill"]
+}
+```
+
+A RecordPath of `arrayOf(/friends[*], 'Joe', 'Jim', 'Jeremy')` would return the following array:
+
+```
+["Jane", "Jack", "Jill", "Joe", "Jim", "Jeremy"]
+```
+
+We can also simply create an array from arbitrary values, such as `arrayOf('good-bye', 'adios', 'au revoir')` which would return the following array:
+
+```
+["good-bye", "adios", "au revoir"]
+```
 
 
 [[filter_functions]]

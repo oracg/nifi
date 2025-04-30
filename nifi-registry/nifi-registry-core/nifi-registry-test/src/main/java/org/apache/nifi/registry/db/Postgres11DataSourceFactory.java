@@ -1,4 +1,4 @@
-package org.apache.nifi.registry.db;/*
+package org.apache.nifi.registry.db; /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -22,16 +22,14 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.delegate.DatabaseDelegate;
 import org.testcontainers.jdbc.JdbcDatabaseDelegate;
 
-import javax.annotation.PostConstruct;
-import javax.script.ScriptException;
+import jakarta.annotation.PostConstruct;
 import javax.sql.DataSource;
-import java.sql.SQLException;
 
 @Configuration
 @Profile("postgres-11")
 public class Postgres11DataSourceFactory extends TestDataSourceFactory {
 
-    private static final PostgreSQLContainer POSTGRESQL_CONTAINER = new PostgreSQLContainer("postgres:11");
+    private static final PostgreSQLContainer<?> POSTGRESQL_CONTAINER = new PostgreSQLContainer<>("postgres:11");
 
     static {
         POSTGRESQL_CONTAINER.start();
@@ -47,7 +45,7 @@ public class Postgres11DataSourceFactory extends TestDataSourceFactory {
     }
 
     @PostConstruct
-    public void initDatabase() throws SQLException, ScriptException {
+    public void initDatabase() {
         DatabaseDelegate databaseDelegate = new JdbcDatabaseDelegate(POSTGRESQL_CONTAINER, "");
         databaseDelegate.execute("DROP DATABASE test; CREATE DATABASE test;", "", 0, false, true);
     }

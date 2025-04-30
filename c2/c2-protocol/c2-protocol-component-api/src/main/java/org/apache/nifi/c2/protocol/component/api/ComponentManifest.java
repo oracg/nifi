@@ -17,13 +17,12 @@
 
 package org.apache.nifi.c2.protocol.component.api;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 
-@ApiModel
 public class ComponentManifest implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -31,8 +30,10 @@ public class ComponentManifest implements Serializable {
     private List<ControllerServiceDefinition> controllerServices;
     private List<ProcessorDefinition> processors;
     private List<ReportingTaskDefinition> reportingTasks;
+    private List<ParameterProviderDefinition> parameterProviders;
+    private List<FlowAnalysisRuleDefinition> flowAnalysisRules;
 
-    @ApiModelProperty("Public interfaces defined in this bundle")
+    @Schema(description = "Public interfaces defined in this bundle")
     public List<DefinedType> getApis() {
         return (apis != null ? Collections.unmodifiableList(apis) : null);
     }
@@ -41,7 +42,7 @@ public class ComponentManifest implements Serializable {
         this.apis = apis;
     }
 
-    @ApiModelProperty("Controller Services provided in this bundle")
+    @Schema(description = "Controller Services provided in this bundle")
     public List<ControllerServiceDefinition> getControllerServices() {
         return (controllerServices != null ? Collections.unmodifiableList(controllerServices) : null);
     }
@@ -50,7 +51,7 @@ public class ComponentManifest implements Serializable {
         this.controllerServices = controllerServices;
     }
 
-    @ApiModelProperty("Processors provided in this bundle")
+    @Schema(description = "Processors provided in this bundle")
     public List<ProcessorDefinition> getProcessors() {
         return (processors != null ? Collections.unmodifiableList(processors) : null);
     }
@@ -59,13 +60,31 @@ public class ComponentManifest implements Serializable {
         this.processors = processors;
     }
 
-    @ApiModelProperty("Reporting Tasks provided in this bundle")
+    @Schema(description = "Reporting Tasks provided in this bundle")
     public List<ReportingTaskDefinition> getReportingTasks() {
         return (reportingTasks != null ? Collections.unmodifiableList(reportingTasks) : null);
     }
 
     public void setReportingTasks(List<ReportingTaskDefinition> reportingTasks) {
         this.reportingTasks = reportingTasks;
+    }
+
+    @Schema(description = "Parameter Providers provided in this bundle")
+    public List<ParameterProviderDefinition> getParameterProviders() {
+        return (parameterProviders != null ? Collections.unmodifiableList(parameterProviders) : null);
+    }
+
+    public void setParameterProviders(List<ParameterProviderDefinition> parameterProviders) {
+        this.parameterProviders = parameterProviders;
+    }
+
+    @Schema(description = "Flow Analysis Rules provided in this bundle")
+    public List<FlowAnalysisRuleDefinition> getFlowAnalysisRules() {
+        return (flowAnalysisRules != null ? Collections.unmodifiableList(flowAnalysisRules) : null);
+    }
+
+    public void setFlowAnalysisRules(List<FlowAnalysisRuleDefinition> flowAnalysisRules) {
+        this.flowAnalysisRules = flowAnalysisRules;
     }
 
 }

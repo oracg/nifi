@@ -17,8 +17,7 @@
 
 package org.apache.nifi.c2.protocol.api;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.io.Serializable;
 import java.util.Objects;
@@ -26,7 +25,6 @@ import java.util.Objects;
 /**
  * An object representation of a Heartbeat in the C2 protocol
  */
-@ApiModel
 public class C2Heartbeat implements Serializable {
     private static final long serialVersionUID = 1L;
 
@@ -36,8 +34,9 @@ public class C2Heartbeat implements Serializable {
     private DeviceInfo deviceInfo;
     private AgentInfo agentInfo;
     private FlowInfo flowInfo;
+    private ResourceInfo resourceInfo;
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     public String getIdentifier() {
         return identifier;
     }
@@ -46,7 +45,7 @@ public class C2Heartbeat implements Serializable {
         this.identifier = identifier;
     }
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     public Long getCreated() {
         return created;
     }
@@ -55,7 +54,7 @@ public class C2Heartbeat implements Serializable {
         this.created = created;
     }
 
-    @ApiModelProperty("Metadata for the device")
+    @Schema(description = "Metadata for the device")
     public DeviceInfo getDeviceInfo() {
         return deviceInfo;
     }
@@ -64,7 +63,7 @@ public class C2Heartbeat implements Serializable {
         this.deviceInfo = deviceInfo;
     }
 
-    @ApiModelProperty("Metadata for the agent installed on the device")
+    @Schema(description = "Metadata for the agent installed on the device")
     public AgentInfo getAgentInfo() {
         return agentInfo;
     }
@@ -73,7 +72,7 @@ public class C2Heartbeat implements Serializable {
         this.agentInfo = agentInfo;
     }
 
-    @ApiModelProperty("Metadata for the flow currently deployed to the agent")
+    @Schema(description = "Metadata for the flow currently deployed to the agent")
     public FlowInfo getFlowInfo() {
         return flowInfo;
     }
@@ -82,23 +81,32 @@ public class C2Heartbeat implements Serializable {
         this.flowInfo = flowInfo;
     }
 
+    @Schema(description = "Metadata for the resources currently deployed to the agent")
+    public ResourceInfo getResourceInfo() {
+        return resourceInfo;
+    }
+
+    public void setResourceInfo(ResourceInfo resourceInfo) {
+        this.resourceInfo = resourceInfo;
+    }
+
     // Convenience getters
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     public String getDeviceId() {
         return deviceInfo != null ? deviceInfo.getIdentifier() : null;
     }
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     public String getAgentId() {
         return agentInfo != null ? agentInfo.getIdentifier() : null;
     }
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     public String getAgentClass() {
         return agentInfo != null ? agentInfo.getAgentClass() : null;
     }
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     public String getAgentManifestId() {
         if (agentInfo != null && agentInfo.getAgentManifest() != null) {
             return agentInfo.getAgentManifest().getIdentifier();
@@ -106,7 +114,7 @@ public class C2Heartbeat implements Serializable {
         return null;
     }
 
-    @ApiModelProperty(hidden = true)
+    @Schema(hidden = true)
     public String getFlowId() {
         return flowInfo != null ? flowInfo.getFlowId() : null;
     }
@@ -141,5 +149,4 @@ public class C2Heartbeat implements Serializable {
     public int hashCode() {
         return Objects.hash(identifier);
     }
-
 }

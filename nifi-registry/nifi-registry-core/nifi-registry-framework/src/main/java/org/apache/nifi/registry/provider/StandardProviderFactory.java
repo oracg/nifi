@@ -25,13 +25,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.sql.DataSource;
 import javax.xml.XMLConstants;
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
@@ -182,7 +182,7 @@ public class StandardProviderFactory implements ProviderFactory, DisposableBean 
             final Providers providers = providersHolder.get();
             final List<org.apache.nifi.registry.provider.generated.Provider> jaxbHookProvider = providers.getEventHookProvider();
 
-            if(jaxbHookProvider == null || jaxbHookProvider.isEmpty()) {
+            if (jaxbHookProvider == null || jaxbHookProvider.isEmpty()) {
                 // no hook provided
                 return eventHookProviders;
             }
@@ -282,7 +282,7 @@ public class StandardProviderFactory implements ProviderFactory, DisposableBean 
     }
 
     private ProviderConfigurationContext createConfigurationContext(final List<Property> configProperties) {
-        final Map<String,String> properties = new HashMap<>();
+        final Map<String, String> properties = new HashMap<>();
 
         if (configProperties != null) {
             configProperties.forEach(p -> properties.put(p.getName(), p.getValue()));

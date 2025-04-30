@@ -16,9 +16,9 @@
  */
 package org.apache.nifi.registry.web.mapper;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -35,7 +35,7 @@ public class ThrowableMapper implements ExceptionMapper<Throwable> {
     @Override
     public Response toResponse(Throwable exception) {
         // log the error
-        logger.error(String.format("An unexpected error has occurred: %s. Returning %s response.", exception, Response.Status.INTERNAL_SERVER_ERROR), exception);
+        logger.error("An unexpected error. Returning {} response.", Response.Status.INTERNAL_SERVER_ERROR, exception);
         return Response.status(Response.Status.INTERNAL_SERVER_ERROR).entity("An unexpected error has occurred. Please check the logs for additional details.").type("text/plain").build();
     }
 

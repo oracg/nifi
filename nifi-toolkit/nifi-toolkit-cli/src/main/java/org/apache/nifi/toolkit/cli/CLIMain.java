@@ -26,12 +26,12 @@ import org.apache.nifi.toolkit.cli.api.Context;
 import org.apache.nifi.toolkit.cli.api.Session;
 import org.apache.nifi.toolkit.cli.impl.client.NiFiClientFactory;
 import org.apache.nifi.toolkit.cli.impl.client.NiFiRegistryClientFactory;
-import org.apache.nifi.toolkit.cli.impl.client.nifi.NiFiClient;
 import org.apache.nifi.toolkit.cli.impl.command.CommandFactory;
 import org.apache.nifi.toolkit.cli.impl.command.CommandProcessor;
 import org.apache.nifi.toolkit.cli.impl.context.StandardContext;
 import org.apache.nifi.toolkit.cli.impl.session.InMemorySession;
 import org.apache.nifi.toolkit.cli.impl.session.PersistentSession;
+import org.apache.nifi.toolkit.client.NiFiClient;
 import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -52,9 +52,11 @@ import java.util.Map;
 /**
  * Main entry point for the CLI.
  *
- * If the main method is executed with no arguments, then the interactive shell is launched.
+ * If the main method is executed with no arguments, then the interactive shell
+ * is launched.
  *
- * If the main method is executed with arguments, then a single command will be executed, and the process will exit.
+ * If the main method is executed with arguments, then a single command will be
+ * executed, and the process will exit.
  */
 public class CLIMain {
 
@@ -67,7 +69,8 @@ public class CLIMain {
         if (args == null || args.length == 0) {
             runInteractiveCLI();
         } else {
-            // in standalone mode we want to make sure the process exits with the correct status
+            // in standalone mode we want to make sure the process exits with the correct
+            // status
             try {
                 final int returnCode = runSingleCommand(args);
                 System.exit(returnCode);
@@ -85,21 +88,21 @@ public class CLIMain {
      * @throws IOException if an error occurs
      */
     private static void runInteractiveCLI() throws IOException {
-        //Logger.getLogger("org.jline").setLevel(Level.FINE);
+        // Logger.getLogger("org.jline").setLevel(Level.FINE);
         try (final Terminal terminal = TerminalBuilder.builder()
                 .name(SHELL_NAME)
                 .system(true)
                 .nativeSignals(true)
                 .signalHandler(Terminal.SignalHandler.SIG_IGN)
                 .build();
-             final PrintStream output = new PrintStream(terminal.output(), true)) {
+                final PrintStream output = new PrintStream(terminal.output(), true)) {
 
             printHeader(BANNER_FILE, output);
 
             final Context context = createContext(output, true);
 
-            final Map<String,Command> topLevelCommands = CommandFactory.createTopLevelCommands(context);
-            final Map<String,CommandGroup> commandGroups = CommandFactory.createCommandGroups(context);
+            final Map<String, Command> topLevelCommands = CommandFactory.createTopLevelCommands(context);
+            final Map<String, CommandGroup> commandGroups = CommandFactory.createCommandGroups(context);
 
             final CommandProcessor commandProcessor = new CommandProcessor(topLevelCommands, commandGroups, context);
             final Completer completer = new CLICompleter(topLevelCommands.values(), commandGroups.values());
@@ -122,7 +125,7 @@ public class CLIMain {
                     final ParsedLine parsedLine = reader.getParsedLine();
                     final String[] parsedArgs = parsedLine.words().toArray(new String[parsedLine.words().size()]);
                     commandProcessor.process(parsedArgs);
-                } catch (UserInterruptException e) {
+                } catch (UserInterruptException ignored) {
                     // Ignore
                 } catch (EndOfFileException e) {
                     return;
@@ -138,8 +141,8 @@ public class CLIMain {
      */
     public static int runSingleCommand(final String[] args) {
         final Context context = createContext(System.out, false);
-        final Map<String,Command> topLevelCommands = CommandFactory.createTopLevelCommands(context);
-        final Map<String,CommandGroup> commandGroups = CommandFactory.createCommandGroups(context);
+        final Map<String, Command> topLevelCommands = CommandFactory.createTopLevelCommands(context);
+        final Map<String, CommandGroup> commandGroups = CommandFactory.createCommandGroups(context);
 
         final CommandProcessor commandProcessor = new CommandProcessor(topLevelCommands, commandGroups, context);
         return commandProcessor.process(args);

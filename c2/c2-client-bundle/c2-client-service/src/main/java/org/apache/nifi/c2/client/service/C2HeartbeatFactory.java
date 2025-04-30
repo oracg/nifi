@@ -14,22 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.apache.nifi.c2.client.service;
 
+import static java.net.NetworkInterface.getNetworkInterfaces;
+import static java.util.Collections.list;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingInt;
+import static java.util.Map.entry;
+import static java.util.Objects.nonNull;
+import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.function.Supplier;
 import org.apache.nifi.c2.client.C2ClientConfig;
 import org.apache.nifi.c2.client.PersistentUuidGenerator;
 import org.apache.nifi.c2.client.service.model.RuntimeInfoWrapper;
@@ -38,12 +47,13 @@ import org.apache.nifi.c2.protocol.api.AgentManifest;
 import org.apache.nifi.c2.protocol.api.AgentRepositories;
 import org.apache.nifi.c2.protocol.api.AgentResourceConsumption;
 import org.apache.nifi.c2.protocol.api.AgentStatus;
+import org.apache.nifi.c2.protocol.api.ResourceInfo;
 import org.apache.nifi.c2.protocol.api.C2Heartbeat;
 import org.apache.nifi.c2.protocol.api.DeviceInfo;
 import org.apache.nifi.c2.protocol.api.FlowInfo;
-import org.apache.nifi.c2.protocol.api.FlowQueueStatus;
 import org.apache.nifi.c2.protocol.api.NetworkInfo;
 import org.apache.nifi.c2.protocol.api.SupportedOperation;
+import org.apache.nifi.c2.protocol.api.ResourcesGlobalHash;
 import org.apache.nifi.c2.protocol.api.SystemInfo;
 import org.apache.nifi.c2.protocol.component.api.RuntimeManifest;
 import org.slf4j.Logger;
@@ -59,15 +69,18 @@ public class C2HeartbeatFactory {
     private final C2ClientConfig clientConfig;
     private final FlowIdHolder flowIdHolder;
     private final ManifestHashProvider manifestHashProvider;
+    private final Supplier<ResourcesGlobalHash> resourcesGlobalHashSupplier;
 
     private String agentId;
     private String deviceId;
     private File confDirectory;
 
-    public C2HeartbeatFactory(C2ClientConfig clientConfig, FlowIdHolder flowIdHolder, ManifestHashProvider manifestHashProvider) {
+    public C2HeartbeatFactory(C2ClientConfig clientConfig, FlowIdHolder flowIdHolder, ManifestHashProvider manifestHashProvider,
+                              Supplier<ResourcesGlobalHash> resourcesGlobalHashSupplier) {
         this.clientConfig = clientConfig;
         this.flowIdHolder = flowIdHolder;
         this.manifestHashProvider = manifestHashProvider;
+        this.resourcesGlobalHashSupplier = resourcesGlobalHashSupplier;
     }
 
     public C2Heartbeat create(RuntimeInfoWrapper runtimeInfoWrapper) {
@@ -75,15 +88,22 @@ public class C2HeartbeatFactory {
 
         heartbeat.setAgentInfo(getAgentInfo(runtimeInfoWrapper.getAgentRepositories(), runtimeInfoWrapper.getManifest()));
         heartbeat.setDeviceInfo(generateDeviceInfo());
-        heartbeat.setFlowInfo(getFlowInfo(runtimeInfoWrapper.getQueueStatus()));
+        heartbeat.setFlowInfo(getFlowInfo(runtimeInfoWrapper));
         heartbeat.setCreated(System.currentTimeMillis());
+
+        ResourceInfo resourceInfo = new ResourceInfo();
+        resourceInfo.setHash(resourcesGlobalHashSupplier.get().getDigest());
+        heartbeat.setResourceInfo(resourceInfo);
 
         return heartbeat;
     }
 
-    private FlowInfo getFlowInfo(Map<String, FlowQueueStatus> queueStatus) {
+    private FlowInfo getFlowInfo(RuntimeInfoWrapper runtimeInfoWrapper) {
         FlowInfo flowInfo = new FlowInfo();
-        flowInfo.setQueues(queueStatus);
+        flowInfo.setQueues(runtimeInfoWrapper.getQueueStatus());
+        flowInfo.setProcessorBulletins(runtimeInfoWrapper.getProcessorBulletins());
+        flowInfo.setProcessorStatuses(runtimeInfoWrapper.getProcessorStatus());
+        flowInfo.setRunStatus(runtimeInfoWrapper.getRunStatus());
         Optional.ofNullable(flowIdHolder.getFlowId()).ifPresent(flowInfo::setFlowId);
         return flowInfo;
     }
@@ -135,8 +155,7 @@ public class C2HeartbeatFactory {
     }
 
     private DeviceInfo generateDeviceInfo() {
-        // Populate DeviceInfo
-        final DeviceInfo deviceInfo = new DeviceInfo();
+        DeviceInfo deviceInfo = new DeviceInfo();
         deviceInfo.setNetworkInfo(generateNetworkInfo());
         deviceInfo.setIdentifier(getDeviceIdentifier(deviceInfo.getNetworkInfo()));
         deviceInfo.setSystemInfo(generateSystemInfo());
@@ -144,45 +163,53 @@ public class C2HeartbeatFactory {
     }
 
     private NetworkInfo generateNetworkInfo() {
-        NetworkInfo networkInfo = new NetworkInfo();
         try {
-            // Determine all interfaces
-            final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
+            Set<NetworkInterface> eligibleInterfaces = list(getNetworkInterfaces())
+                .stream()
+                .filter(this::isEligibleInterface)
+                .collect(toSet());
 
-            final Set<NetworkInterface> operationIfaces = new HashSet<>();
-
-            // Determine eligible interfaces
-            while (networkInterfaces.hasMoreElements()) {
-                final NetworkInterface networkInterface = networkInterfaces.nextElement();
-                if (!networkInterface.isLoopback() && networkInterface.isUp()) {
-                    operationIfaces.add(networkInterface);
-                }
+            if (logger.isTraceEnabled()) {
+                logger.trace("Found {} eligible interfaces with names {}", eligibleInterfaces.size(),
+                    eligibleInterfaces.stream()
+                        .map(NetworkInterface::getName)
+                        .collect(toSet())
+                );
             }
-            logger.trace("Have {} interfaces with names {}", operationIfaces.size(),
-                operationIfaces.stream()
-                    .map(NetworkInterface::getName)
-                    .collect(Collectors.toSet())
-            );
 
-            if (!operationIfaces.isEmpty()) {
-                if (operationIfaces.size() > 1) {
-                    logger.debug("Instance has multiple interfaces.  Generated information may be non-deterministic.");
-                }
-
-                for (NetworkInterface networkInterface : operationIfaces) {
-                    Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
-                    if (inetAddresses.hasMoreElements()) {
-                        InetAddress inetAddress = inetAddresses.nextElement();
-                        networkInfo.setDeviceId(networkInterface.getName());
-                        networkInfo.setHostname(inetAddress.getHostName());
-                        networkInfo.setIpAddress(inetAddress.getHostAddress());
-                        break;
-                    }
-                }
-            }
+            Comparator<Map.Entry<NetworkInterface, InetAddress>> orderByIp4AddressesFirst = comparingInt(item -> item.getValue() instanceof Inet4Address ? 0 : 1);
+            Comparator<Map.Entry<NetworkInterface, InetAddress>> orderByNetworkInterfaceName = comparing(entry -> entry.getKey().getName());
+            return eligibleInterfaces.stream()
+                .flatMap(networkInterface -> list(networkInterface.getInetAddresses())
+                    .stream()
+                    .map(inetAddress -> entry(networkInterface, inetAddress)))
+                .sorted(orderByIp4AddressesFirst.thenComparing(orderByNetworkInterfaceName))
+                .findFirst()
+                .map(entry -> createNetworkInfo(entry.getKey(), entry.getValue()))
+                .orElseGet(NetworkInfo::new);
         } catch (Exception e) {
             logger.error("Network Interface processing failed", e);
+            return new NetworkInfo();
         }
+    }
+
+    private boolean isEligibleInterface(NetworkInterface networkInterface) {
+        try {
+            return !networkInterface.isLoopback()
+                && !networkInterface.isVirtual()
+                && networkInterface.isUp()
+                && nonNull(networkInterface.getHardwareAddress());
+        } catch (SocketException e) {
+            logger.warn("Error processing network interface", e);
+            return false;
+        }
+    }
+
+    private NetworkInfo createNetworkInfo(NetworkInterface networkInterface, InetAddress inetAddress) {
+        NetworkInfo networkInfo = new NetworkInfo();
+        networkInfo.setDeviceId(networkInterface.getName());
+        networkInfo.setHostname(inetAddress.getHostName());
+        networkInfo.setIpAddress(inetAddress.getHostAddress());
         return networkInfo;
     }
 
@@ -190,9 +217,9 @@ public class C2HeartbeatFactory {
         if (deviceId == null) {
             if (networkInfo.getDeviceId() != null) {
                 try {
-                    final NetworkInterface netInterface = NetworkInterface.getByName(networkInfo.getDeviceId());
+                    NetworkInterface netInterface = NetworkInterface.getByName(networkInfo.getDeviceId());
                     byte[] hardwareAddress = netInterface.getHardwareAddress();
-                    final StringBuilder macBuilder = new StringBuilder();
+                    StringBuilder macBuilder = new StringBuilder();
                     if (hardwareAddress != null) {
                         for (byte address : hardwareAddress) {
                             macBuilder.append(String.format("%02X", address));
@@ -207,7 +234,6 @@ public class C2HeartbeatFactory {
                 deviceId = getConfiguredDeviceId();
             }
         }
-
         return deviceId;
     }
 

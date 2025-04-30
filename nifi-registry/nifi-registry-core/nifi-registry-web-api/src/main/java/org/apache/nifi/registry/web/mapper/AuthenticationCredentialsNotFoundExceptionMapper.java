@@ -22,9 +22,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.stereotype.Component;
 
-import javax.ws.rs.core.Response;
-import javax.ws.rs.ext.ExceptionMapper;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
 /**
  * Maps exceptions that occur because no valid credentials were found into the corresponding response.
@@ -38,7 +38,7 @@ public class AuthenticationCredentialsNotFoundExceptionMapper implements Excepti
     @Override
     public Response toResponse(AuthenticationCredentialsNotFoundException exception) {
         // log the error
-        logger.info(String.format("No valid credentials were found in the request: %s. Returning %s response.", exception, Response.Status.FORBIDDEN));
+        logger.info("No valid credentials were found in the request: {}. Returning {} response.", exception, Response.Status.FORBIDDEN);
 
         if (logger.isDebugEnabled()) {
             logger.debug(StringUtils.EMPTY, exception);

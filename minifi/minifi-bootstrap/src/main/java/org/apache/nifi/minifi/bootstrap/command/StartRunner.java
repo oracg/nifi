@@ -25,6 +25,7 @@ import static org.apache.nifi.minifi.bootstrap.RunMiNiFi.STATUS_FILE_PID_KEY;
 import static org.apache.nifi.minifi.bootstrap.RunMiNiFi.UNINITIALIZED;
 import static org.apache.nifi.minifi.bootstrap.Status.ERROR;
 import static org.apache.nifi.minifi.bootstrap.Status.OK;
+import static org.apache.nifi.minifi.bootstrap.service.MiNiFiExecCommandProvider.NIFI_BOOTSTRAP_LISTEN_PORT;
 import static org.apache.nifi.minifi.commons.api.MiNiFiCommandState.FULLY_APPLIED;
 import static org.apache.nifi.minifi.commons.api.MiNiFiCommandState.NOT_APPLIED_WITH_RESTART;
 import static org.apache.nifi.minifi.commons.api.MiNiFiConstants.RAW_EXTENSION;
@@ -55,6 +56,7 @@ import org.apache.nifi.minifi.bootstrap.service.MiNiFiPropertiesGenerator;
 import org.apache.nifi.minifi.bootstrap.service.MiNiFiStdLogHandler;
 import org.apache.nifi.minifi.bootstrap.service.PeriodicStatusReporterManager;
 import org.apache.nifi.minifi.commons.api.MiNiFiProperties;
+import org.apache.nifi.minifi.properties.BootstrapProperties;
 
 public class StartRunner implements CommandRunner {
 
@@ -122,13 +124,13 @@ public class StartRunner implements CommandRunner {
             CMD_LOGGER.warn("Failed to delete previous lock file {}; this file should be cleaned up manually", prevLockFile);
         }
 
-        Properties bootstrapProperties = bootstrapFileProvider.getBootstrapProperties();
+        BootstrapProperties bootstrapProperties = bootstrapFileProvider.getBootstrapProperties();
         String confDir = bootstrapProperties.getProperty(CONF_DIR_KEY);
 
-        generateMiNiFiProperties(bootstrapProperties, confDir);
+        generateMiNiFiProperties(bootstrapFileProvider.getProtectedBootstrapProperties(), confDir);
         regenerateFlowConfiguration(bootstrapProperties.getProperty(MiNiFiProperties.NIFI_MINIFI_FLOW_CONFIG.getKey()));
 
-        Process process = startMiNiFi();
+        Process process = startMiNiFi(bootstrapProperties);
         try {
             while (true) {
                 if (process.isAlive()) {
@@ -259,7 +261,7 @@ public class StartRunner implements CommandRunner {
         }
     }
 
-    private void generateMiNiFiProperties(Properties bootstrapProperties, String confDir) {
+    private void generateMiNiFiProperties(BootstrapProperties bootstrapProperties, String confDir) {
         DEFAULT_LOGGER.debug("Generating minifi.properties from bootstrap.conf");
         try {
             miNiFiPropertiesGenerator.generateMinifiProperties(confDir, bootstrapProperties);
@@ -278,13 +280,31 @@ public class StartRunner implements CommandRunner {
         }
     }
 
-    private Process startMiNiFi() throws IOException {
+    private Process startMiNiFi(BootstrapProperties bootstrapProperties) throws IOException {
+        int bootstrapListenPort = parseBootstrapListenPort(bootstrapProperties);
+
         MiNiFiListener listener = new MiNiFiListener();
-        listenPort = listener.start(runMiNiFi, bootstrapFileProvider, configurationChangeListener);
+        listenPort = listener.start(runMiNiFi, bootstrapListenPort, bootstrapFileProvider, configurationChangeListener);
 
         CMD_LOGGER.info("Starting Apache MiNiFi...");
 
         return startMiNiFiProcess(getProcessBuilder());
+    }
+
+    private int parseBootstrapListenPort(BootstrapProperties bootstrapProperties) {
+        String bootstrapListenPort = bootstrapProperties.getProperty(NIFI_BOOTSTRAP_LISTEN_PORT);
+        int parsedBootstrapListenPort = Optional.ofNullable(bootstrapListenPort)
+            .map(String::trim)
+            .map(port -> {
+                try {
+                    return Integer.parseInt(port);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Unable to parse Bootstrap listen port, please provide a valid port for " + NIFI_BOOTSTRAP_LISTEN_PORT);
+                }
+            })
+            .orElse(0);
+        CMD_LOGGER.info("Boostrap listen port {}", parsedBootstrapListenPort);
+        return parsedBootstrapListenPort;
     }
 
     private ProcessBuilder getProcessBuilder() throws IOException {
@@ -317,7 +337,7 @@ public class StartRunner implements CommandRunner {
     }
 
     private File getWorkingDir() throws IOException {
-        Properties props = bootstrapFileProvider.getBootstrapProperties();
+        BootstrapProperties props = bootstrapFileProvider.getBootstrapProperties();
         File bootstrapConfigAbsoluteFile = bootstrapConfigFile.getAbsoluteFile();
         File binDir = bootstrapConfigAbsoluteFile.getParentFile();
 

@@ -82,7 +82,7 @@ public class TestNarBundleExtractor {
             assertEquals("nifi-bar-nar", dependencyCoordinate.getArtifactId());
             assertEquals("2.0.0", dependencyCoordinate.getVersion());
 
-            final Map<String,String> additionalDetails = bundleDetails.getAdditionalDetails();
+            final Map<String, String> additionalDetails = bundleDetails.getAdditionalDetails();
             assertNotNull(additionalDetails);
             assertEquals(0, additionalDetails.size());
         }
@@ -142,14 +142,12 @@ public class TestNarBundleExtractor {
             assertNotNull(bundleDetails.getExtensions());
             assertEquals(10, bundleDetails.getExtensions().size());
 
-            final Map<String,String> additionalDetails = bundleDetails.getAdditionalDetails();
+            final Map<String, String> additionalDetails = bundleDetails.getAdditionalDetails();
             assertNotNull(additionalDetails);
             assertEquals(3, additionalDetails.size());
 
             final String listHdfsKey = "org.apache.nifi.processors.hadoop.ListHDFS";
             assertTrue(additionalDetails.containsKey(listHdfsKey));
-            assertTrue(additionalDetails.get(listHdfsKey).startsWith("<!DOCTYPE html>"));
-            assertTrue(additionalDetails.get(listHdfsKey).trim().endsWith("</html>"));
         }
     }
 
